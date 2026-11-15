@@ -3,6 +3,22 @@ import Foundation
 
 final class Provider: NSObject {
     var receivedRequest = false
+    private var completionSound: NSSound?
+
+    private func playCompletionSound() {
+        struct SoundSettings: Decodable { let sound: Bool? }
+        let config = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Polish/config.json")
+        let settings = (try? Data(contentsOf: config)).flatMap {
+            try? JSONDecoder().decode(SoundSettings.self, from: $0)
+        }
+        guard settings?.sound ?? true,
+              let url = Bundle.main.url(forResource: "ready", withExtension: "wav") else { return }
+        completionSound?.stop()
+        completionSound = NSSound(contentsOf: url, byReference: true)
+        completionSound?.play()
+    }
+
     @objc func polish(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
         receivedRequest = true
         guard let input = pasteboard.string(forType: .string), !input.isEmpty else {
@@ -31,7 +47,11 @@ final class Provider: NSObject {
                 return
             }
             pasteboard.clearContents()
-            pasteboard.setString(output, forType: .string)
+            guard pasteboard.setString(output, forType: .string) else {
+                error.pointee = "Could not return the polished text." as NSString
+                return
+            }
+            playCompletionSound()
         } catch let caught {
             error.pointee = "Could not start Polish: \(caught)" as NSString
         }

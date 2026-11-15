@@ -2,7 +2,7 @@
 
 Polish is a macOS writing app. Paste or write a document, select a passage, and choose Rework, Polish, Shorten, or Continue idea (…). Polish sends the full document and the selected passage to OpenAI so the result fits the surrounding text. Without a selection, the action uses the full document. The action updates the passage in place and keeps it selected for another pass. Continue idea inserts one sentence after the passage and keeps the original passage selected. Use Undo to reverse a change, or Copy to copy the document.
 
-The animated flag responds to your system's reduced-motion setting. Each action plays a different quiet note when its result is ready. A separate note signals a failed request. Turn sounds off in Settings.
+The animated flag responds to your system's reduced-motion setting. Each action plays a different quiet note when its result is ready. A separate note signals a failed request. The right-click Polish service also plays the completion note after it returns the corrected text. Turn sounds off in Settings to silence both the editor and the service.
 
 ## Install or update
 
@@ -38,7 +38,7 @@ The local build uses an available signing identity, or ad hoc signing if none is
 
 To prepare a disk image for the current Mac architecture, install a Developer ID Application certificate and run `./scripts/release.sh`. The script signs the app and disk image with a secure timestamp. It writes the image to `build/distribution/`.
 
-Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.2-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
+Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.3-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
 
 ## Website
 

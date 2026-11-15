@@ -11,6 +11,7 @@ for size in 16 32 128 256 512; do
   rsvg-convert -w "$double" -h "$double" assets/polish-logo.svg > "build/Polish.iconset/icon_${size}x${size}@2x.png"
 done
 iconutil -c icns build/Polish.iconset -o build/Polish.app/Contents/Resources/Polish.icns
+cp assets/sounds/ready.wav build/Polish.app/Contents/Resources/
 cp target/release/polish build/Polish.app/Contents/MacOS/polish-core
 mkdir -p "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS" "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources"
 cp mac/Settings-Info.plist "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Info.plist"

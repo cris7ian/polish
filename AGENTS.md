@@ -16,7 +16,7 @@ Polish is a macOS writing app. Rune renders the editor and Settings tab. Rust ha
 - Keep API keys in Keychain. Do not log keys or selected text. Never include credentials in repository files.
 - Send the complete document and exact selected passage to the model. Without a selection, use the whole document. Never apply a result to a document that changed after the request. Continue idea inserts one sentence after the selected passage. Each applied change must remain undoable.
 - Preserve the original text on errors. The legacy service depends on app support and may lose rich formatting.
-- Preserve reduced-motion behavior for the animated icon. Keep completion sounds quiet and optional.
+- Preserve reduced-motion behavior for the animated icon. Keep completion sounds quiet and optional. The Swift service reads the saved sound setting after each successful request and plays the host bundle’s `ready.wav` only after returning text to the service pasteboard.
 - Rune is pre-release. The local Rune copy is based on revision `9587433` and adds selected-glyph motion. Keep its matching dependency patches pinned and test builds after dependency changes.
 
 ## Website
