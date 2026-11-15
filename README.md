@@ -42,7 +42,7 @@ The local build uses an available signing identity, or ad hoc signing if none is
 
 To prepare a disk image for the current Mac architecture, install a Developer ID Application certificate and run `./scripts/release.sh`. The script signs the app and disk image with a secure timestamp. It writes the image to `build/distribution/`.
 
-Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.5-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
+Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.6-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
 
 ## Website
 

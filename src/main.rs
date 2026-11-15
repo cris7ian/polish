@@ -1,6 +1,6 @@
 use rune::{
-    AppSpec, Color, Cx, Easing, El, Latest, LineCap, LoopSpec, Path, Player, SelectionStyle, Shape,
-    TextEdit, TextStyle, Transition, col, el, row, text, text_input, tok,
+    AppSpec, Color, Cx, Easing, El, Latest, LineCap, LoopSpec, Path, Player, ScrollSpec,
+    SelectionStyle, Shape, TextEdit, TextStyle, Transition, col, el, row, text, text_input, tok,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -253,6 +253,8 @@ struct State {
     key_status: KeyStatus,
     key_check: Latest<KeyStatus>,
     editor: TextEdit,
+    editor_scroll: rune::Live<[f32; 4]>,
+    editor_thumb: rune::Live<[f32; 4]>,
     startup_clipboard: Latest<Option<String>>,
     work: Latest<Result<WorkResult, String>>,
     processing_target: Option<Target>,
@@ -289,6 +291,8 @@ impl Default for State {
             },
             key_check: Latest::default(),
             editor: TextEdit::default(),
+            editor_scroll: rune::Live::new([0.0; 4]),
+            editor_thumb: rune::Live::new([0.0; 4]),
             startup_clipboard: Latest::default(),
             work: Latest::default(),
             processing_target: None,
@@ -540,9 +544,7 @@ fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                         .child(
                             row()
                                 .w_full()
-                                .justify_between()
-                                .child(label("API KEY", 10.0, 700.0, 0x917e79))
-                                .child(label("Stored in Keychain", 11.0, 500.0, 0xa2938d)),
+                                .child(label("API KEY", 10.0, 700.0, 0x917e79)),
                         )
                         .child(
                             row()
@@ -1073,6 +1075,7 @@ fn view(s: &State, cx: &mut Cx<State>) -> El {
                 .w_full()
                 .max_w(760.0)
                 .grow(1.0)
+                .min_h(0.0)
                 .gap(16.0)
                 .child(header(s.settings_open))
                 .child(page),
@@ -1084,6 +1087,7 @@ fn write_view(s: &State) -> El {
         .key("write-page")
         .w_full()
         .grow(1.0)
+        .min_h(0.0)
         .gap(16.0)
         .transition(Transition::offset(0.0, -10.0).combined(Transition::blur(1.0)))
         .child(
@@ -1184,7 +1188,6 @@ fn write_view(s: &State) -> El {
                     let input = text_input(&s.editor, TextStyle::new(15.0, 450.0))
                         .key("editor")
                         .w_full()
-                        .grow(1.0)
                         .min_h(80.0)
                         .px(8.0)
                         .pb(8.0)
@@ -1201,7 +1204,7 @@ fn write_view(s: &State) -> El {
                         .placeholder("Paste or write your text here…", color(0xb5a7a2))
                         .on_edit(|s: &mut State| &mut s.editor)
                         .on_submit(|s: &mut State, _| s.editor.insert("\n"));
-                    if s.working
+                    let input = if s.working
                         && s.processing_target
                             .as_ref()
                             .is_some_and(|target| target.document == s.editor.text)
@@ -1209,7 +1212,64 @@ fn write_view(s: &State) -> El {
                         input.looping(LoopSpec::slide(1.2, [0.0, 0.0], [0.0, 0.001]))
                     } else {
                         input
-                    }
+                    };
+                    let metrics = s.editor_scroll.clone();
+                    let thumb = s.editor_thumb.clone();
+                    let drag_metrics = s.editor_scroll.clone();
+                    row()
+                        .w_full()
+                        .grow(1.0)
+                        .min_h(0.0)
+                        .child(
+                            col()
+                                .key("editor-scroll")
+                                .grow(1.0)
+                                .min_w(0.0)
+                                .min_h(0.0)
+                                .scroll(ScrollSpec {
+                                    stick_bottom: false,
+                                })
+                                .on_scroll_offset(move |pos| {
+                                    let h = pos.drawn[1];
+                                    let max = pos.max[1];
+                                    let size = if max > 0.0 && h > 0.0 {
+                                        (h * h / (h + max)).clamp(24.0_f32.min(h), h)
+                                    } else {
+                                        0.0
+                                    };
+                                    let top = if max > 0.0 {
+                                        (h - size) * (pos.offset[1] / max).clamp(0.0, 1.0)
+                                    } else {
+                                        0.0
+                                    };
+                                    metrics.set([pos.offset[1], max, h, size]);
+                                    thumb.set([3.0, top, 6.0, size]);
+                                })
+                                .child(input),
+                        )
+                        .child(
+                            el().key("editor-scroll-track").w(12.0).h_full().child(
+                                el().key("editor-scroll-thumb")
+                                    .absolute(0.0, 0.0)
+                                    .live_rect(&s.editor_thumb)
+                                    .radius(3.0)
+                                    .fill(color(0xc9aeaa))
+                                    .a11y_hidden()
+                                    .on_drag_any(move |drag, tx| {
+                                        let [offset, max, h, size] = drag_metrics.get();
+                                        match drag.phase {
+                                            rune::Phase::Down => drag.data = offset,
+                                            rune::Phase::Move if max > 0.0 && h > size => {
+                                                tx.scroll_to_y(
+                                                    "editor-scroll",
+                                                    drag.data + drag.dy * max / (h - size),
+                                                );
+                                            }
+                                            _ => {}
+                                        }
+                                    }),
+                            ),
+                        )
                 }),
         )
         .child(
@@ -1410,6 +1470,37 @@ mod tests {
                 .paste_on_startup
         );
     }
+    #[test]
+    fn editor_scrollbar_tracks_and_drags_long_document() {
+        let mut state = test_state();
+        state
+            .editor
+            .replace_text(&(0..100).map(|n| format!("Line {n}\n")).collect::<String>());
+        let mut rt = rune::Runtime::new(state, view, (600.0, 760.0), rune::Env::new(false, 1.0));
+        rt.frame(0.0);
+        rt.frame(0.0);
+        let [_, max, height, thumb] = rt.state.editor_scroll.get();
+        assert!(max > 0.0 && thumb > 0.0 && thumb < height);
+        let actions = rt.presented("actions").unwrap().0;
+        assert!(
+            actions[1] + actions[3] <= 760.0,
+            "actions must remain inside the window"
+        );
+        let (scroll_x, scroll_y) = rt.find("editor-scroll").unwrap();
+        rt.wheel(scroll_x, scroll_y, -100.0);
+        rt.frame(0.0);
+        assert!(
+            rt.state.editor_scroll.get()[0] > 0.0,
+            "wheel must scroll the editor"
+        );
+        let before_drag = rt.state.editor_scroll.get()[0];
+        let (x, y) = rt.find("editor-scroll-thumb").unwrap();
+        rt.pointer_down(x, y);
+        rt.pointer_move(x, y + 80.0);
+        rt.pointer_up(x, y + 80.0);
+        rt.frame(0.0);
+        assert!(rt.state.editor_scroll.get()[0] > before_drag);
+    }
     fn test_state() -> State {
         State {
             key: TextEdit::default().secure(),
@@ -1419,6 +1510,8 @@ mod tests {
             key_status: KeyStatus::Missing,
             key_check: Latest::default(),
             editor: TextEdit::default(),
+            editor_scroll: rune::Live::new([0.0; 4]),
+            editor_thumb: rune::Live::new([0.0; 4]),
             startup_clipboard: Latest::default(),
             work: Latest::default(),
             processing_target: None,
@@ -1862,6 +1955,8 @@ mod tests {
             key_status: KeyStatus::Missing,
             key_check: Latest::default(),
             editor: TextEdit::default(),
+            editor_scroll: rune::Live::new([0.0; 4]),
+            editor_thumb: rune::Live::new([0.0; 4]),
             startup_clipboard: Latest::default(),
             work: Latest::default(),
             processing_target: None,
@@ -1900,6 +1995,8 @@ mod tests {
             key_status: KeyStatus::Missing,
             key_check: Latest::default(),
             editor: TextEdit::default(),
+            editor_scroll: rune::Live::new([0.0; 4]),
+            editor_thumb: rune::Live::new([0.0; 4]),
             startup_clipboard: Latest::default(),
             work: Latest::default(),
             processing_target: None,
