@@ -1,0 +1,54 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "polish-text",
+  "title": "Polish",
+  "description": "Correct selected or copied text with OpenAI",
+  "icon": "polish.png",
+  "author": "cristian",
+  "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "categories": [
+    "Productivity"
+  ],
+  "commands": [
+    {
+      "name": "polish",
+      "title": "Polish Text",
+      "description": "Correct selected or copied text with OpenAI",
+      "mode": "no-view",
+      "icon": "polish.png",
+      "preferences": [
+        {
+          "name": "openaiApiKey",
+          "title": "OpenAI API Key",
+          "type": "password",
+          "required": true,
+          "description": "API key for polishing text with OpenAI."
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "2.6.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^9.39.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "build": "ray build",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
+  }
+}

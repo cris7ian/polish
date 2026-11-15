@@ -1,0 +1,61 @@
+import {
+  Clipboard,
+  getFrontmostApplication,
+  getPreferenceValues,
+  getSelectedText,
+  showHUD,
+  showToast,
+  Toast,
+} from "@raycast/api";
+import { polishText } from "./polish-api";
+
+interface Preferences {
+  openaiApiKey: string;
+}
+
+export default async function Command() {
+  try {
+    const { openaiApiKey } = getPreferenceValues<Preferences>();
+    if (!openaiApiKey?.trim())
+      throw new Error("Add your OpenAI API key in Raycast preferences.");
+    const originalApp = await getFrontmostApplication();
+    let selected: string | undefined;
+    try {
+      const text = await getSelectedText();
+      if (text.trim()) selected = text;
+    } catch {
+      /* The active app may not expose a selection. */
+    }
+    const input = selected ?? (await Clipboard.readText());
+    if (!input?.trim())
+      throw new Error("Select text or copy text to the clipboard first.");
+    await showToast({ style: Toast.Style.Animated, title: "Polishing text…" });
+    const result = await polishText(input, openaiApiKey.trim());
+    const currentApp = await getFrontmostApplication();
+    let selectionUnchanged = !selected;
+    if (selected && currentApp.path === originalApp.path) {
+      try {
+        selectionUnchanged = (await getSelectedText()) === selected;
+      } catch {
+        selectionUnchanged = false;
+      }
+    }
+    if (currentApp.path !== originalApp.path || !selectionUnchanged) {
+      await Clipboard.copy(result);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Polished text copied",
+        message: "The original selection changed; paste it where you want.",
+      });
+      return;
+    }
+    await Clipboard.paste(result);
+    await showHUD("Polished and pasted");
+  } catch (error) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "Could not polish text",
+      message: error instanceof Error ? error.message : "Please try again.",
+    });
+  }
+}

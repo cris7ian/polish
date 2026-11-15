@@ -1,6 +1,6 @@
 # Polish
 
-Polish is a macOS selected-text service. Rust handles settings, API requests, and Keychain access. Rune renders the settings window. The Swift host registers the macOS service.
+Polish is a macOS writing app. Rune renders the editor and Settings tab. Rust handles requests and Keychain access. The Swift host also registers the legacy macOS text service.
 
 ## Workflows
 
@@ -14,6 +14,7 @@ Polish is a macOS selected-text service. Rust handles settings, API requests, an
 - Keep the service host and the settings app in separate bundles with distinct identifiers. macOS must be able to launch the service while the settings window is closed.
 - Keep the host out of the Dock. The settings app may appear there.
 - Keep API keys in Keychain. Do not log keys or selected text. Never include credentials in repository files.
-- Keep original selected text unchanged on errors. Account for apps that do not support text replacement and for loss of rich formatting.
-- Preserve reduced-motion behavior for the animated icon.
+- Send the complete document and exact selected passage to the model. Without a selection, use the whole document. Never apply a result to a document that changed after the request. Continue idea inserts one sentence after the selected passage. Each applied change must remain undoable.
+- Preserve the original text on errors. The legacy service depends on app support and may lose rich formatting.
+- Preserve reduced-motion behavior for the animated icon. Keep completion sounds quiet and optional.
 - Rune is pre-release and pinned with matching workspace patches. Test builds after dependency changes.
