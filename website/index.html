@@ -12,6 +12,7 @@
   <script defer src="text-motion.js"></script>
   <script defer src="demo.js"></script>
   <script defer src="app-demo.js"></script>
+  <script defer src="homebrew-copy.js"></script>
   <title>Polish — not the country</title>
 </head>
 <body>
@@ -26,7 +27,12 @@
         <h1 id="title">Your words,<br><em>well put.</em></h1>
         <p class="description">Not related to the country, btw.</p>
         <a class="download" href="https://github.com/cris7ian/polish/releases">Get Polish <span aria-hidden="true">↗</span></a>
-        <p class="requirements">macOS · OpenAI API key required</p>
+        <div class="brew-install" role="group" aria-label="Install with Homebrew">
+          <code id="brew-command">brew install --cask cris7ian/tap/polish</code>
+          <button class="copy-command" type="button" aria-label="Copy Homebrew install command" aria-describedby="brew-copy-status">Copy</button>
+        </div>
+        <p id="brew-copy-status" class="brew-copy-status" role="status" aria-live="polite"></p>
+        <p class="requirements">Apple silicon · macOS 13+ · OpenAI API key required</p>
       </div>
       <section class="art" aria-label="An interactive Polish demo">
         <div class="water" aria-hidden="true">

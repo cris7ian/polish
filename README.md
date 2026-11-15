@@ -57,7 +57,9 @@ python3 scripts/verify-website.py
 node --check website/water.js
 node --check website/app-demo.js
 node --check website/text-motion.js
+node --check website/homebrew-copy.js
 node scripts/test-website-demo.mjs
+node scripts/test-website-homebrew.mjs
 ```
 
 The checks cover local HTML assets and metadata, plus demo sequencing, replay, visibility, silent autoplay, and reduced motion. Changes to the site on `main` trigger the website deployment workflow. It uses a GitHub OpenID Connect role to publish to the private `polish.salsaparapizza.com` S3 bucket and invalidate CloudFront distribution `E1XDVY8I9CM0OV`. The intended public address is `https://polish.salsaparapizza.com/`.

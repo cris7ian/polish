@@ -42,3 +42,6 @@ button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}butto
 .art .landed .motion-glyph{animation:glyph-settle .48s cubic-bezier(.22,.8,.3,1) both;animation-delay:calc(var(--glyph-index)*12ms)}
 @keyframes glyph-settle{from{opacity:.35;transform:translateY(-.15em)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.art .landed .motion-glyph{animation:none}.word{transition:none}}
+
+/* Homebrew install command */
+.brew-install{display:flex;align-items:center;gap:12px;width:fit-content;max-width:100%;margin-top:18px;padding:8px 8px 8px 14px;border:1px solid #e6d9d5;border-radius:12px;background:#fffaf8;box-shadow:0 3px 12px #7043430a}.brew-install code{font-size:12px;color:#765d60;overflow-wrap:anywhere}.copy-command{flex:none;border:1px solid #e4cece;border-radius:8px;background:#f8eeeb;color:#974157;padding:8px 10px;font-size:12px;font-weight:650}.copy-command:hover{background:#f1dfdc}.brew-copy-status{font-size:12px;color:#765d60;margin:8px 0 0}.brew-copy-status:empty{display:none}
