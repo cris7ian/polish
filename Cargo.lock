@@ -2437,7 +2437,7 @@ dependencies = [
 
 [[package]]
 name = "polish"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "keyring",
  "reqwest",
@@ -2780,7 +2780,6 @@ dependencies = [
 [[package]]
 name = "rune"
 version = "0.0.1"
-source = "git+https://github.com/anomalyco/rune?rev=958743308f36fdf1c568c513badc96ddb0c7f040#958743308f36fdf1c568c513badc96ddb0c7f040"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2833,7 +2832,7 @@ dependencies = [
  "spellbook",
  "swash",
  "taffy",
- "tiny-skia-path 0.11.4 (git+https://github.com/anomalyco/rune?rev=958743308f36fdf1c568c513badc96ddb0c7f040)",
+ "tiny-skia-path 0.11.4",
  "unicode-segmentation",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3436,8 +3435,6 @@ dependencies = [
 [[package]]
 name = "tiny-skia-path"
 version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
 dependencies = [
  "arrayref",
  "bytemuck",
@@ -3447,7 +3444,8 @@ dependencies = [
 [[package]]
 name = "tiny-skia-path"
 version = "0.11.4"
-source = "git+https://github.com/anomalyco/rune?rev=958743308f36fdf1c568c513badc96ddb0c7f040#958743308f36fdf1c568c513badc96ddb0c7f040"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
 dependencies = [
  "arrayref",
  "bytemuck",

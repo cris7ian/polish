@@ -37,8 +37,8 @@ if [ "${POLISH_RELEASE_SIGNING:-0}" = 1 ]; then
   if [ "$signing_identity" = '-' ]; then echo 'A Developer ID signing identity is required for release.' >&2; exit 1; fi
   signing_options=(--timestamp --options runtime)
 fi
-codesign --force --sign "$signing_identity" "${signing_options[@]}" --identifier com.cristian.polish.core build/Polish.app/Contents/MacOS/polish-core
-codesign --force --sign "$signing_identity" "${signing_options[@]}" "build/Polish.app/Contents/Helpers/Polish Settings.app"
-codesign --force --sign "$signing_identity" "${signing_options[@]}" build/Polish.app
+codesign --force --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} --identifier com.cristian.polish.core build/Polish.app/Contents/MacOS/polish-core
+codesign --force --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} "build/Polish.app/Contents/Helpers/Polish Settings.app"
+codesign --force --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} build/Polish.app
 codesign --verify --deep --strict build/Polish.app
 echo "Built build/Polish.app"

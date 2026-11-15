@@ -17,4 +17,4 @@ Polish is a macOS writing app. Rune renders the editor and Settings tab. Rust ha
 - Send the complete document and exact selected passage to the model. Without a selection, use the whole document. Never apply a result to a document that changed after the request. Continue idea inserts one sentence after the selected passage. Each applied change must remain undoable.
 - Preserve the original text on errors. The legacy service depends on app support and may lose rich formatting.
 - Preserve reduced-motion behavior for the animated icon. Keep completion sounds quiet and optional.
-- Rune is pre-release and pinned with matching workspace patches. Test builds after dependency changes.
+- Rune is pre-release. The local Rune copy is based on revision `9587433` and adds selected-glyph motion. Keep its matching dependency patches pinned and test builds after dependency changes.

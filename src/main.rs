@@ -219,6 +219,7 @@ struct State {
     key_check: Latest<KeyStatus>,
     editor: TextEdit,
     work: Latest<Result<WorkResult, String>>,
+    processing_target: Option<Target>,
     work_status: String,
     working: bool,
     settings_open: bool,
@@ -252,6 +253,7 @@ impl Default for State {
             key_check: Latest::default(),
             editor: TextEdit::default(),
             work: Latest::default(),
+            processing_target: None,
             work_status: String::new(),
             working: false,
             settings_open: false,
@@ -710,6 +712,7 @@ fn begin_action(s: &mut State, action: Action) {
         return;
     }
     s.working = true;
+    s.processing_target = Some(target.clone());
     s.work_status = "Working…".into();
     let model = load_config().model;
     s.work
@@ -993,8 +996,8 @@ fn write_view(s: &State) -> El {
                                 .child(glyph("copy", color(0x9a7f7a), &s.symbols)),
                         ),
                 )
-                .child(
-                    text_input(&s.editor, TextStyle::new(15.0, 450.0))
+                .child({
+                    let input = text_input(&s.editor, TextStyle::new(15.0, 450.0))
                         .key("editor")
                         .w_full()
                         .grow(1.0)
@@ -1007,10 +1010,23 @@ fn write_view(s: &State) -> El {
                             SelectionStyle::new(color(0xd57d8a).alpha(0.45))
                                 .inactive(color(0xc9aaa8).alpha(0.45), None),
                         )
+                        .processing_text(s.processing_target.as_ref().and_then(|target| {
+                            (s.working && s.editor.text == target.document)
+                                .then_some((target.start, target.end))
+                        }))
                         .placeholder("Paste or write your text here…", color(0xb5a7a2))
                         .on_edit(|s: &mut State| &mut s.editor)
-                        .on_submit(|s: &mut State, _| s.editor.insert("\n")),
-                ),
+                        .on_submit(|s: &mut State, _| s.editor.insert("\n"));
+                    if s.working
+                        && s.processing_target
+                            .as_ref()
+                            .is_some_and(|target| target.document == s.editor.text)
+                    {
+                        input.looping(LoopSpec::slide(1.2, [0.0, 0.0], [0.0, 0.001]))
+                    } else {
+                        input
+                    }
+                }),
         )
         .child(
             row()
@@ -1125,12 +1141,18 @@ fn main() {
             }
             if let Some(result) = s.work.take() {
                 s.working = false;
+                s.processing_target = None;
                 match result {
                     Ok(done) => {
                         let action = done.target.action;
                         let applied = apply_result(s, done);
                         if applied && s.sound {
                             if let Some(sound) = s.ready_sounds.get(&action) {
+                                sound.seek(0.0);
+                                sound.play();
+                            }
+                        } else if !applied && s.sound {
+                            if let Some(sound) = &s.error_sound {
                                 sound.seek(0.0);
                                 sound.play();
                             }
@@ -1167,6 +1189,7 @@ mod tests {
             key_check: Latest::default(),
             editor: TextEdit::default(),
             work: Latest::default(),
+            processing_target: None,
             work_status: String::new(),
             working: false,
             settings_open: false,
@@ -1386,6 +1409,57 @@ mod tests {
         );
     }
     #[test]
+    fn processing_moves_only_target_glyphs_and_respects_reduced_motion() {
+        fn state() -> State {
+            let mut s = test_state();
+            s.editor.replace_text("Before selected after");
+            s.editor.set_selection(7, 15);
+            s.processing_target = Target::from_edit(&s.editor, Action::Polish);
+            s.working = true;
+            s
+        }
+        fn glyphs(rt: &rune::Runtime<State>) -> Vec<[f32; 4]> {
+            let rect = rt.presented("editor").unwrap().0;
+            rt.instances
+                .iter()
+                .filter(|i| {
+                    i.params[1] == rune::render::KIND_GLYPH
+                        && i.rect[0] >= rect[0]
+                        && i.rect[0] < rect[0] + rect[2]
+                        && i.rect[1] >= rect[1]
+                        && i.rect[1] < rect[1] + rect[3]
+                })
+                .map(|i| i.rect)
+                .collect()
+        }
+        let mut rt = rune::Runtime::new(state(), view, (600.0, 760.0), rune::Env::new(false, 1.0));
+        rt.frame(0.0);
+        let first = glyphs(&rt);
+        rt.frame(0.2);
+        let second = glyphs(&rt);
+        assert_eq!(first.len(), second.len());
+        assert!(first.len() >= 19);
+        assert!(
+            first
+                .iter()
+                .zip(&second)
+                .any(|(a, b)| (a[1] - b[1]).abs() > 0.2)
+        );
+        assert!(
+            (first[0][1] - second[0][1]).abs() < 0.05,
+            "unselected text stays still"
+        );
+        assert!(
+            (first.last().unwrap()[1] - second.last().unwrap()[1]).abs() < 0.05,
+            "text after the selection stays still"
+        );
+        rt.set_system_reduced_motion(true);
+        rt.frame(0.0);
+        let still = glyphs(&rt);
+        rt.frame(0.2);
+        assert_eq!(still, glyphs(&rt), "reduced motion keeps letters still");
+    }
+    #[test]
     fn fullscreen_content_stays_at_a_readable_width() {
         let mut rt = rune::Runtime::new(
             test_state(),
@@ -1464,6 +1538,7 @@ mod tests {
             key_check: Latest::default(),
             editor: TextEdit::default(),
             work: Latest::default(),
+            processing_target: None,
             work_status: String::new(),
             working: false,
             settings_open: true,
@@ -1499,6 +1574,7 @@ mod tests {
             key_check: Latest::default(),
             editor: TextEdit::default(),
             work: Latest::default(),
+            processing_target: None,
             work_status: String::new(),
             working: false,
             settings_open: true,
