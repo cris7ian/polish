@@ -2437,7 +2437,7 @@ dependencies = [
 
 [[package]]
 name = "polish"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "keyring",
  "reqwest",

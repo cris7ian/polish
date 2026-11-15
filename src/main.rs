@@ -318,7 +318,7 @@ fn model_option(name: &'static str, detail: &'static str, id: &'static str, sele
         .checked(selected)
         .focusable(true)
         .grow(1.0)
-        .h(68.0)
+        .h(84.0)
         .px(14.0)
         .center_y()
         .gap(11.0)
@@ -340,9 +340,11 @@ fn model_option(name: &'static str, detail: &'static str, id: &'static str, sele
         ))
         .child(
             col()
+                .grow(1.0)
+                .min_w(0.0)
                 .gap(3.0)
                 .child(label(name, 13.0, 650.0, 0x38282a))
-                .child(label(detail, 11.0, 450.0, 0x887a76)),
+                .child(label(detail, 11.0, 450.0, 0x887a76).w_full().wrap()),
         )
 }
 fn logo() -> El {
@@ -570,7 +572,7 @@ fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                 ))
                                 .child(model_option(
                                     "GPT-6 Astra",
-                                    "Most capable",
+                                    "Most expensive, not for this kind of work but you do you",
                                     "gpt-6-astra",
                                     s.model.text == "gpt-6-astra",
                                 )),
@@ -589,23 +591,33 @@ fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                         ),
                 )
                 .child(
-                    el().key("sound-toggle")
+                    row()
+                        .key("sound-toggle")
                         .role("switch")
                         .label("Sounds")
                         .checked(s.sound)
                         .focusable(true)
+                        .w(100.0)
                         .h(32.0)
-                        .px(10.0)
                         .center_y()
-                        .radius(8.0)
-                        .hover(color(0x783345).alpha(0.06))
+                        .gap(10.0)
                         .on_press(|s: &mut State| s.sound = !s.sound)
-                        .child(label(
-                            if s.sound { "Sounds on" } else { "Sounds off" },
-                            12.0,
-                            600.0,
-                            0x795b59,
-                        )),
+                        .child(label("Sounds", 12.0, 600.0, 0x795b59).a11y_hidden())
+                        .child(
+                            el().size(38.0, 22.0)
+                                .radius(11.0)
+                                .fill(color(if s.sound { 0xc84e65 } else { 0xd9cdc8 }))
+                                .motion(tok::motion::SNAPPY)
+                                .a11y_hidden()
+                                .child(
+                                    el().key("sound-knob")
+                                        .size(18.0, 18.0)
+                                        .absolute(if s.sound { 18.0 } else { 2.0 }, 2.0)
+                                        .radius(9.0)
+                                        .fill(color(0xffffff))
+                                        .shadow(1.0, 3.0, color(0x70443e).alpha(0.22)),
+                                ),
+                        ),
                 )
                 .child(
                     row()
@@ -1474,6 +1486,24 @@ mod tests {
             "editor should stay narrow in fullscreen"
         );
         assert!(editor[0] > 32.0, "editor should be centered");
+    }
+    #[test]
+    fn sound_switch_toggles_and_fits_the_settings_card() {
+        let mut state = test_state();
+        state.settings_open = true;
+        let mut rt = rune::Runtime::new(state, view, (600.0, 760.0), rune::Env::new(false, 1.0));
+        rt.frame(0.0);
+        let bounds = rt.presented("sound-toggle").unwrap().0;
+        assert!(bounds[2] < 150.0, "the switch should be compact");
+        let (x, y) = rt.find("sound-toggle").unwrap();
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+        assert!(rt.state.sound);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+        assert!(!rt.state.sound);
     }
     #[test]
     fn tabs_remain_in_place_when_switching_pages() {
