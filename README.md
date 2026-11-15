@@ -1,6 +1,10 @@
 # Polish
 
-Polish is a macOS writing app. Paste or write a document, select a passage, and choose Rework, Polish, Shorten, or Continue idea (…). Polish sends the full document and the selected passage to OpenAI so the result fits the surrounding text. Without a selection, the action uses the full document. The action updates the passage in place and keeps it selected for another pass. Continue idea inserts one sentence after the passage and keeps the original passage selected. Use Undo to reverse a change, or Copy to copy the document.
+Polish is a macOS writing app. Paste or write a document, select a passage, and choose Rework, Polish, Shorten, or Continue idea (…). Polish sends the full document and the selected passage to OpenAI so the result fits the surrounding text. Polish Tweet rewrites the selection as a post targeting 280 characters; it rejects results over 280 Unicode characters, though X's weighted character counting may differ. Without a selection, the action uses the full document. The action updates the passage in place and keeps it selected for another pass. Continue idea inserts one sentence after the passage and keeps the original passage selected. Use Undo to reverse a change, or Copy to copy the document.
+
+Keyboard shortcuts: ⌘R for Rework, ⌘P for Polish, ⌘. for Shorten, ⌘T for Polish Tweet, ⌘Z for Undo, and ⌘⇧Z for Redo. The right-click Services menu also offers Polish Tweet.
+
+On launch, the editor pastes plain text from the clipboard into an empty document. Turn off **Paste on startup** in Settings to disable this. The trash button clears the document; use Undo to restore it. Clipboard contents are not sent to OpenAI until you choose an editing action.
 
 The animated flag responds to your system's reduced-motion setting. Each action plays a different quiet note when its result is ready. A separate note signals a failed request. The right-click Polish service also plays the completion note after it returns the corrected text. Turn sounds off in Settings to silence both the editor and the service.
 
@@ -18,7 +22,7 @@ The script builds the app and installs it at `~/Applications/Polish.app`. If Pol
 
 Open Polish from Launchpad or Applications. In the Settings tab, enter an OpenAI API key, select a model, and save. The key is stored in macOS Keychain. A green indicator means OpenAI accepted the key; it does not confirm model access or billing. The copy button places the key on the clipboard for up to 30 seconds.
 
-If **Polish** is missing from Services, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Text**. Reopen the app where you selected text if its menu does not refresh. You can assign a keyboard shortcut in the same settings panel.
+If **Polish** or **Polish Tweet** is missing from Services, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Text**. macOS may require enabling each service separately. Reopen the app where you selected text if its menu does not refresh. You can assign a keyboard shortcut in the same settings panel.
 
 ## Privacy and behavior
 
@@ -38,7 +42,7 @@ The local build uses an available signing identity, or ad hoc signing if none is
 
 To prepare a disk image for the current Mac architecture, install a Developer ID Application certificate and run `./scripts/release.sh`. The script signs the app and disk image with a secure timestamp. It writes the image to `build/distribution/`.
 
-Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.4-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
+Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.5-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
 
 ## Website
 

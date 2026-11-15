@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   hud: vi.fn(),
   polish: vi.fn(),
+  tweet: vi.fn(),
 }));
 vi.mock("@raycast/api", () => ({
   Clipboard: {
@@ -25,8 +26,12 @@ vi.mock("@raycast/api", () => ({
     Style: { Animated: "animated", Success: "success", Failure: "failure" },
   },
 }));
-vi.mock("./polish-api", () => ({ polishText: mocks.polish }));
+vi.mock("./polish-api", () => ({
+  polishText: mocks.polish,
+  polishTweet: mocks.tweet,
+}));
 import Command from "./polish";
+import TweetCommand from "./polish-tweet";
 
 describe("Polish command", () => {
   beforeEach(() => {
@@ -34,6 +39,32 @@ describe("Polish command", () => {
     mocks.app.mockResolvedValue({ path: "/Applications/TextEdit.app" });
     mocks.selected.mockResolvedValue("Bad speling");
     mocks.polish.mockResolvedValue("Bad spelling");
+  });
+  it("uses the tweet action and copies when the selection changes", async () => {
+    mocks.tweet.mockResolvedValue("A concise post");
+    mocks.selected
+      .mockResolvedValueOnce("Bad speling")
+      .mockResolvedValueOnce("Changed");
+    await TweetCommand();
+    expect(mocks.tweet).toHaveBeenCalledWith("Bad speling", "test-key");
+    expect(mocks.paste).not.toHaveBeenCalled();
+    expect(mocks.copy).toHaveBeenCalledWith("A concise post");
+  });
+  it("accepts 280 Unicode scalar values and rejects 281 without changing text or clipboard", async () => {
+    mocks.tweet.mockResolvedValue("😀".repeat(280));
+    await TweetCommand();
+    expect(mocks.paste).toHaveBeenCalledWith("😀".repeat(280));
+    mocks.paste.mockClear();
+    mocks.tweet.mockResolvedValue("😀".repeat(281));
+    await TweetCommand();
+    expect(mocks.paste).not.toHaveBeenCalled();
+    expect(mocks.copy).not.toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        style: "failure",
+        message: "The tweet exceeds 280 characters. Try again.",
+      }),
+    );
   });
   it("pastes when the original selection remains active", async () => {
     await Command();

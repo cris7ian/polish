@@ -20,14 +20,22 @@ final class Provider: NSObject {
     }
 
     @objc func polish(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        runService(pasteboard, argument: "--polish", error: error)
+    }
+
+    @objc func polishTweet(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        runService(pasteboard, argument: "--tweet", error: error)
+    }
+
+    private func runService(_ pasteboard: NSPasteboard, argument: String, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
         receivedRequest = true
         guard let input = pasteboard.string(forType: .string), !input.isEmpty else {
             error.pointee = "Select text to polish." as NSString
             return
         }
         let task = Process()
-        task.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Polish Settings.app/Contents/MacOS/polish-settings")
-        task.arguments = ["--polish"]
+        task.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Polish Settings.app/Contents/MacOS/Polish")
+        task.arguments = [argument]
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         task.standardInput = stdin; task.standardOutput = stdout; task.standardError = stderr
         do {

@@ -16,7 +16,9 @@ cp assets/sounds/ready.wav build/Polish.app/Contents/Resources/
 rm -f build/Polish.app/Contents/MacOS/polish-core
 mkdir -p "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS" "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources"
 cp mac/Settings-Info.plist "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Info.plist"
-cp target/release/polish "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS/polish-settings"
+# Remove the old executable name from incremental builds.
+rm -f "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS/polish-settings"
+cp target/release/polish "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS/Polish"
 cp build/Polish.app/Contents/Resources/Polish.icns "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/Polish.icns"
 cp assets/sounds/*.wav "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/"
 swift scripts/render-symbols.swift "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/Symbols"

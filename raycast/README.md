@@ -1,6 +1,6 @@
 # Polish for Raycast
 
-Polish Text corrects selected text with OpenAI and pastes the result. If no text is selected, it uses the clipboard. If the active app or selection changes during the request, it copies the result instead.
+Polish Text corrects selected text with OpenAI. Polish Tweet rewrites it as one post of at most 280 characters. Both paste the result; if no text is selected, they use the clipboard. If the active app or selection changes during the request, they copy the result instead. Tweet results over 280 Unicode scalar values are rejected without changing the selection or clipboard.
 
 1. Run `npm install` in this directory.
 2. Run `npm run dev` to import the extension into Raycast.

@@ -13,7 +13,10 @@ interface Preferences {
   openaiApiKey: string;
 }
 
-export default async function Command() {
+export async function runPolish(
+  transform: (input: string, apiKey: string) => Promise<string>,
+  kind: "text" | "tweet",
+) {
   try {
     const { openaiApiKey } = getPreferenceValues<Preferences>();
     if (!openaiApiKey?.trim())
@@ -29,8 +32,13 @@ export default async function Command() {
     const input = selected ?? (await Clipboard.readText());
     if (!input?.trim())
       throw new Error("Select text or copy text to the clipboard first.");
-    await showToast({ style: Toast.Style.Animated, title: "Polishing text…" });
-    const result = await polishText(input, openaiApiKey.trim());
+    await showToast({
+      style: Toast.Style.Animated,
+      title: kind === "tweet" ? "Polishing tweet…" : "Polishing text…",
+    });
+    const result = await transform(input, openaiApiKey.trim());
+    if (kind === "tweet" && Array.from(result).length > 280)
+      throw new Error("The tweet exceeds 280 characters. Try again.");
     const currentApp = await getFrontmostApplication();
     let selectionUnchanged = !selected;
     if (selected && currentApp.path === originalApp.path) {
@@ -58,4 +66,8 @@ export default async function Command() {
       message: error instanceof Error ? error.message : "Please try again.",
     });
   }
+}
+
+export default async function Command() {
+  await runPolish(polishText, "text");
 }

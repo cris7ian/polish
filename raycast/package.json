@@ -28,6 +28,22 @@
           "description": "API key for polishing text with OpenAI."
         }
       ]
+    },
+    {
+      "name": "polish-tweet",
+      "title": "Polish Tweet",
+      "description": "Rewrite selected or copied text as a concise post",
+      "mode": "no-view",
+      "icon": "polish.png",
+      "preferences": [
+        {
+          "name": "openaiApiKey",
+          "title": "OpenAI API Key",
+          "type": "password",
+          "required": true,
+          "description": "API key for polishing text with OpenAI."
+        }
+      ]
     }
   ],
   "dependencies": {

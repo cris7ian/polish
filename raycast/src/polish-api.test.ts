@@ -1,5 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
-import { polishText } from "./polish-api";
+import { polishText, polishTweet } from "./polish-api";
+
+describe("polishTweet", () => {
+  it("requests a single 280-character post while preserving input", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "completed",
+          output: [{ content: [{ type: "output_text", text: "A post." }] }],
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(
+      polishTweet("Original text", "test-key", fetcher),
+    ).resolves.toBe("A post.");
+    const body = JSON.parse(String(fetcher.mock.calls[0][1]?.body));
+    expect(body.input).toBe("Original text");
+    expect(body.instructions).toContain("at most 280 characters");
+    expect(body.instructions).toContain("Do not invent facts");
+    expect(body.store).toBe(false);
+  });
+});
 
 describe("polishText", () => {
   it("sends the selected text to OpenAI and returns only the completed output", async () => {
