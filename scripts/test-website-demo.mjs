@@ -2,37 +2,52 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-const element = () => ({ hidden: false, classList: { values: new Set(), toggle(name, on) { if (on) this.values.add(name); else this.values.delete(name); }, remove(name) { this.values.delete(name); } } });
-const versions = Array.from({ length: 4 }, element);
-const idea = element();
-const actions = Object.fromEntries(['polish', 'rework', 'shorten', 'idea', 'undo', 'redo', 'copy'].map(name => [name, element()]));
-const motion = { matches: false, addEventListener() {} };
-let draw;
-const document = {
-  hidden: false,
-  querySelectorAll: () => versions,
-  querySelector: selector => selector === '.demo-idea' ? idea : actions[selector.replace('.demo-press-', '')],
-  addEventListener() {},
-};
-runInNewContext(readFileSync('website/demo.js', 'utf8'), {
-  document, matchMedia: () => motion, performance: { now: () => 0 },
-  requestAnimationFrame: callback => { draw = callback; return 1; }, cancelAnimationFrame() {},
-});
-const frame = t => draw(t);
-const visible = () => versions.findIndex(version => !version.hidden);
-assert.equal(visible(), 0);
-for (const [time, version, action] of [[3000,0,'polish'],[9000,1,'rework'],[15000,2,'shorten'],[22500,3,'idea']]) {
-  frame(time);
-  assert.equal(visible(), version);
-  assert(versions[version].classList.values.has('selected'));
-  assert(versions[version].classList.values.has('processing'));
-  assert(actions[action].classList.values.has('active'));
+function element() {
+  const values = new Set();
+  return {
+    textContent: '', dataset: {}, hidden: false, disabled: false, listeners: {},
+    firstElementChild: { textContent: '' },
+    classList: { add: (...names) => names.forEach(n => values.add(n)), remove: (...names) => names.forEach(n => values.delete(n)), toggle: (n, on) => on ? values.add(n) : values.delete(n) },
+    setAttribute() {}, addEventListener(name, fn) { this.listeners[name] = fn; },
+  };
 }
-frame(28000); assert.equal(idea.hidden, false);
-frame(31600); assert.equal(idea.hidden, true); assert(actions.undo.classList.values.has('active'));
-frame(34600); assert.equal(idea.hidden, false); assert(actions.redo.classList.values.has('active'));
-frame(37100); assert(actions.copy.classList.values.has('active'));
-motion.matches = true; frame(38000);
-assert.equal(visible(), 1); assert.equal(idea.hidden, true);
-assert(!versions[1].classList.values.has('processing'));
-console.log('Website demo checks passed');
+function setup(reduced = false) {
+  const words = ['spaghetti', 'delicious', 'definitely'].map(word => Object.assign(element(), { dataset: { word } }));
+  const elements = Object.fromEntries(['.demo-action', '.action-label', '.action-icon', '.demo-announcement', '.note'].map(s => [s, element()]));
+  let pending; const audios = [];
+  const document = {
+    hidden: false, listeners: {},
+    querySelector: selector => elements[selector],
+    querySelectorAll: selector => selector === '[data-word]' ? words : [],
+    addEventListener(name, fn) { this.listeners[name] = fn; },
+  };
+  runInNewContext(readFileSync('website/demo.js', 'utf8'), {
+    TextMotion: { setText: (element, text) => { element.textContent = text; } },
+    document, matchMedia: () => ({ matches: reduced, addEventListener() {} }),
+    performance: { now: () => 0 },
+    setTimeout: callback => { pending = callback; return 1; }, clearTimeout: () => { pending = undefined; },
+    Audio: class { constructor() { this.plays = 0; audios.push(this); } play() { this.plays++; return Promise.resolve(); } pause() {} },
+  });
+  return { words, elements, document, audios,
+    tick() { assert(pending, 'Expected next demo beat'); const fn = pending; pending = undefined; fn(); },
+    hasTimer: () => Boolean(pending),
+    click: selector => elements[selector].listeners.click(),
+  };
+}
+const demo = setup();
+assert.deepEqual(demo.words.map(w => w.textContent), ['pasghetti', 'delicious', 'definitley']);
+demo.tick(); assert.equal(demo.elements['.demo-action'].disabled, true);
+demo.tick(); assert.deepEqual(demo.words.map(w => w.textContent), ['spaghetti', 'delicious', 'definitely']);
+demo.tick(); demo.tick(); demo.tick();
+assert.deepEqual(demo.words.map(w => w.textContent), ['spaghetti', 'divine', 'definitely']);
+assert.equal(demo.hasTimer(), false);
+demo.click('.demo-action'); assert.equal(demo.words[0].textContent, 'pasghetti');
+demo.document.hidden = true; demo.document.listeners.visibilitychange(); assert.equal(demo.hasTimer(), false);
+demo.document.hidden = false; demo.document.listeners.visibilitychange(); assert.equal(demo.hasTimer(), true);
+const quiet = setup(); for (let i = 0; i < 5; i++) quiet.tick();
+assert(quiet.audios.every(a => a.plays === 0), 'Autoplay must remain silent');
+const reduced = setup(true); assert.equal(reduced.hasTimer(), false);
+reduced.click('.demo-action'); assert.equal(reduced.words[0].textContent, 'spaghetti');
+reduced.click('.demo-action'); assert.equal(reduced.words[1].textContent, 'divine');
+assert.equal(reduced.hasTimer(), false);
+console.log('Demo checks passed: both edits, replay, visibility, silent autoplay, reduced motion.');

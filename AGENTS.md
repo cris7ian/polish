@@ -18,3 +18,15 @@ Polish is a macOS writing app. Rune renders the editor and Settings tab. Rust ha
 - Preserve the original text on errors. The legacy service depends on app support and may lose rich formatting.
 - Preserve reduced-motion behavior for the animated icon. Keep completion sounds quiet and optional.
 - Rune is pre-release. The local Rune copy is based on revision `9587433` and adds selected-glyph motion. Keep its matching dependency patches pinned and test builds after dependency changes.
+
+## Website
+
+- Preview with `python3 -m http.server 8765 --bind 127.0.0.1 --directory website`.
+- Check with `python3 scripts/verify-website.py`, `node --check website/water.js`, `node --check website/app-demo.js`, and `node scripts/test-website-demo.mjs`.
+- Preserve the intentional starting typo “pasghetti” in the hero demo; it is a Simpsons reference.
+- Keep the hero demo limited to typo correction and rerolling one word. It uses fixed text and makes no API requests.
+- Autoplay stays silent until a demo interaction unlocks audio. Reduced motion disables autoplay; manual actions still work.
+- `website/polish-app.png` is the real screenshot in the second panel. Keep it separate from the abstract hero demo. Its non-clickable text overlay in `website/app-demo.js` animates once on visibility and stays static with reduced motion.
+- Website sound files are copies of `assets/sounds/ready.wav` and `assets/sounds/rework.wav`; update both copies when changing these sounds.
+
+- Selected text uses per-letter vertical motion from Rune’s `vendor/rune/src/runtime/paint/content.rs`, not whole-word rotation. `website/text-motion.js` shares that wave between demos; the hero increases its amplitude. Keep the selection background still and honor reduced motion.

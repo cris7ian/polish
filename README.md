@@ -42,6 +42,24 @@ Before distribution, store Apple notarization credentials in a Keychain profile.
 
 ## Website
 
-The static site is in `website/`. Run `python3 scripts/verify-website.py` to check it. Changes to the site on `main` trigger the website deployment workflow. It uses a GitHub OpenID Connect role to publish to the private `polish.salsaparapizza.com` S3 bucket and invalidate CloudFront distribution `E1XDVY8I9CM0OV`. The intended public address is `https://polish.salsaparapizza.com/`.
+The static site is in `website/` and needs no build step. Preview it locally:
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1 --directory website
+```
+
+Open `http://127.0.0.1:8765/`. The hero demonstrates two fixed edits: correcting typos, then rerolling one word. It runs once and offers replay. It does not call OpenAI. Autoplay is silent; interacting with the demo enables quiet app sounds. Reduced-motion users advance the demo manually. The second panel pairs a creator note with a non-clickable app screenshot. Its text overlay selects and corrects the original passage, starting with “Teh pasghetti,” then rerolls “delicious” through “divine,” “incredible,” “heavenly,” and “unforgettable.” Selected letters follow the app’s vertical wave while the selection background stays still. The hero uses a larger wave and a staggered settling animation. This silent animation runs once when the screenshot comes into view and pauses offscreen. Reduced motion shows a static corrected passage.
+
+Run the website checks from the project directory:
+
+```sh
+python3 scripts/verify-website.py
+node --check website/water.js
+node --check website/app-demo.js
+node --check website/text-motion.js
+node scripts/test-website-demo.mjs
+```
+
+The checks cover local HTML assets and metadata, plus demo sequencing, replay, visibility, silent autoplay, and reduced motion. Changes to the site on `main` trigger the website deployment workflow. It uses a GitHub OpenID Connect role to publish to the private `polish.salsaparapizza.com` S3 bucket and invalidate CloudFront distribution `E1XDVY8I9CM0OV`. The intended public address is `https://polish.salsaparapizza.com/`.
 
 Configuration is stored in `~/Library/Application Support/Polish/config.json`; the API key is stored separately in Keychain. Do not add credentials or user configuration to the repository.
