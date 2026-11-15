@@ -26,7 +26,7 @@ final class Provider: NSObject {
             return
         }
         let task = Process()
-        task.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/polish-core")
+        task.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Polish Settings.app/Contents/MacOS/polish-settings")
         task.arguments = ["--polish"]
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         task.standardInput = stdin; task.standardOutput = stdout; task.standardError = stderr
