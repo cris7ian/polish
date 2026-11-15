@@ -1,0 +1,32 @@
+name: Deploy website
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/verify-website.py'
+      - 'scripts/publish-website.sh'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: polish-site-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify website
+        run: python3 scripts/verify-website.py
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::397565768461:role/github-polish-site-deploy
+          aws-region: eu-west-1
+      - name: Publish website
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: E1XDVY8I9CM0OV
+        run: scripts/publish-website.sh

@@ -32,6 +32,16 @@ cargo test --release
 ./scripts/build-app.sh
 ```
 
-The build is ad hoc signed for local use and is not notarized. Rune is pinned to a Git revision; its required patches are pinned in `Cargo.toml`. The app host provides the service. A separate settings app keeps its process identity distinct so macOS can start the service when the settings window is closed.
+The local build uses an available signing identity, or ad hoc signing if none is available. Rune is pinned to a Git revision; its required patches are pinned in `Cargo.toml`. The app host provides the service. A separate settings app keeps its process identity distinct so macOS can start the service when the settings window is closed.
+
+## Release
+
+To prepare a disk image for the current Mac architecture, install a Developer ID Application certificate and run `./scripts/release.sh`. The script signs the app and disk image with a secure timestamp. It writes the image to `build/distribution/`.
+
+Before distribution, store Apple notarization credentials in a Keychain profile. Then run `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-1.0.0-arm64.dmg`, replacing the profile and filename as needed. The script submits the image, staples the ticket, and checks Gatekeeper acceptance. Apple may require the account holder to accept current agreements before notarization.
+
+## Website
+
+The static site is in `website/`. Run `python3 scripts/verify-website.py` to check it. Changes to the site on `main` trigger the website deployment workflow. It uses a GitHub OpenID Connect role to publish to the private `polish.salsaparapizza.com` S3 bucket and invalidate CloudFront distribution `E1XDVY8I9CM0OV`. The intended public address is `https://polish.salsaparapizza.com/`.
 
 Configuration is stored in `~/Library/Application Support/Polish/config.json`; the API key is stored separately in Keychain. Do not add credentials or user configuration to the repository.

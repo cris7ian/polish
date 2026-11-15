@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Polish</title>
+  <defs>
+    <clipPath id="corners"><rect x="16" y="16" width="480" height="480" rx="112"/></clipPath>
+    <linearGradient id="white" x1="56" y1="16" x2="398" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/><stop offset="1" stop-color="#ece9e8"/>
+    </linearGradient>
+    <linearGradient id="red" x1="76" y1="256" x2="432" y2="496" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ed5064"/><stop offset="1" stop-color="#a91e3f"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#corners)">
+    <path fill="url(#red)" d="M16 16h480v480H16z"/>
+    <path fill="url(#white)" d="M16 16h480v240C336 190 192 322 16 256z"/>
+  </g>
+</svg>
