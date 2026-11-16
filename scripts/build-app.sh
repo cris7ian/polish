@@ -11,7 +11,7 @@ for size in 16 32 128 256 512; do
   rsvg-convert -w "$double" -h "$double" assets/polish-logo.svg > "build/Polish.iconset/icon_${size}x${size}@2x.png"
 done
 iconutil -c icns build/Polish.iconset -o build/Polish.app/Contents/Resources/Polish.icns
-cp assets/sounds/ready.wav build/Polish.app/Contents/Resources/
+cp assets/sounds/ready.wav assets/sounds/rework.wav build/Polish.app/Contents/Resources/
 # Remove the obsolete service executable from builds made before the service shared the editor binary.
 rm -f build/Polish.app/Contents/MacOS/polish-core
 mkdir -p "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/MacOS" "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources"
@@ -22,7 +22,16 @@ cp target/release/polish "build/Polish.app/Contents/Helpers/Polish Settings.app/
 cp build/Polish.app/Contents/Resources/Polish.icns "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/Polish.icns"
 cp assets/sounds/*.wav "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/"
 swift scripts/render-symbols.swift "build/Polish.app/Contents/Helpers/Polish Settings.app/Contents/Resources/Symbols"
-swiftc -swift-version 5 mac/main.swift -o build/Polish.app/Contents/MacOS/Polish -framework AppKit
+source scripts/swift-sources.sh
+polish_swift_flags=()
+if [ "${POLISH_INTEGRATION_TEST:-0}" = 1 ]; then
+  if [ "${POLISH_RELEASE_SIGNING:-0}" = 1 ]; then
+    echo 'Integration test entry cannot be included in a release build.' >&2
+    exit 1
+  fi
+  polish_swift_flags=(-D POLISH_INTEGRATION_TEST)
+fi
+swiftc -swift-version 5 ${polish_swift_flags[@]+"${polish_swift_flags[@]}"} mac/main.swift "${polish_swift_modules[@]}" -o build/Polish.app/Contents/MacOS/Polish -framework AppKit
 # A stable signing identity lets macOS recognize the app across rebuilds.
 # Set POLISH_SIGNING_IDENTITY to choose a specific identity, or '-' for ad hoc signing.
 signing_identity="${POLISH_SIGNING_IDENTITY:-}"

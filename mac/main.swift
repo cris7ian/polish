@@ -1,79 +1,167 @@
 import AppKit
-import Foundation
 
-final class Provider: NSObject {
-    var receivedRequest = false
-    private var completionSound: NSSound?
-
-    private func playCompletionSound() {
-        struct SoundSettings: Decodable { let sound: Bool? }
-        let config = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Polish/config.json")
-        let settings = (try? Data(contentsOf: config)).flatMap {
-            try? JSONDecoder().decode(SoundSettings.self, from: $0)
-        }
-        guard settings?.sound ?? true,
-              let url = Bundle.main.url(forResource: "ready", withExtension: "wav") else { return }
-        completionSound?.stop()
-        completionSound = NSSound(contentsOf: url, byReference: true)
-        completionSound?.play()
-    }
-
-    @objc func polish(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
-        runService(pasteboard, argument: "--polish", error: error)
-    }
-
-    @objc func polishTweet(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
-        runService(pasteboard, argument: "--tweet", error: error)
-    }
-
-    private func runService(_ pasteboard: NSPasteboard, argument: String, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
-        receivedRequest = true
-        guard let input = pasteboard.string(forType: .string), !input.isEmpty else {
-            error.pointee = "Select text to polish." as NSString
-            return
-        }
-        let task = Process()
-        task.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Polish Settings.app/Contents/MacOS/Polish")
-        task.arguments = [argument]
-        let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
-        task.standardInput = stdin; task.standardOutput = stdout; task.standardError = stderr
-        do {
-            try task.run()
-            let outputGroup = DispatchGroup()
-            var result = Data(), failure = Data()
-            outputGroup.enter()
-            DispatchQueue.global().async { result = stdout.fileHandleForReading.readDataToEndOfFile(); outputGroup.leave() }
-            outputGroup.enter()
-            DispatchQueue.global().async { failure = stderr.fileHandleForReading.readDataToEndOfFile(); outputGroup.leave() }
-            stdin.fileHandleForWriting.write(Data(input.utf8))
-            try stdin.fileHandleForWriting.close()
-            task.waitUntilExit()
-            outputGroup.wait()
-            guard task.terminationStatus == 0, let output = String(data: result, encoding: .utf8), !output.isEmpty else {
-                error.pointee = (String(data: failure, encoding: .utf8) ?? "Polish failed.") as NSString
-                return
-            }
-            pasteboard.clearContents()
-            guard pasteboard.setString(output, forType: .string) else {
-                error.pointee = "Could not return the polished text." as NSString
-                return
-            }
-            playCompletionSound()
-        } catch let caught {
-            error.pointee = "Could not start Polish: \(caught)" as NSString
+final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private let preferences = HostPreferences()
+    private lazy var completionSound = CompletionSound(preferences: preferences)
+    private(set) lazy var provider = Provider(completionSound: completionSound)
+    private var statusItem: NSStatusItem?
+    private let selectionActions = SelectionActions()
+    private var selectionMenuItems: [NSMenuItem] = []
+    private let selectionStatus = NSMenuItem(title: "Select text in another app", action: nil, keyEquivalent: "")
+    private func refreshMenuBarItem(_ preferences: HostPreferences.Values) {
+        if preferences.menuBarIcon {
+            if statusItem == nil { installMenuBarItem() }
+        } else if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
         }
     }
-}
-final class Delegate: NSObject, NSApplicationDelegate {
-    let provider = Provider()
+
+    private func installMenuBarItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = item
+        item.button?.image = Self.menuBarFlag()
+        item.button?.toolTip = "Polish"
+        item.button?.setAccessibilityLabel("Polish")
+
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.autoenablesItems = false
+        selectionMenuItems = []
+        for (title, action) in [("Polish", #selector(polishSelection)),
+                                ("Reroll", #selector(rerollSelection))] {
+            let entry = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
+            entry.target = self
+            entry.isEnabled = !selectionActions.isWorking
+            selectionMenuItems.append(entry)
+        }
+        selectionStatus.isEnabled = false
+        menu.addItem(selectionStatus)
+        menu.addItem(.separator())
+        let open = menu.addItem(withTitle: "Open Polish", action: #selector(openFromMenu), keyEquivalent: "")
+        open.target = self
+        menu.addItem(.separator())
+        let quit = menu.addItem(withTitle: "Quit Polish", action: #selector(quitFromMenu), keyEquivalent: "q")
+        quit.target = self
+        item.menu = menu
+    }
+
+    private static func menuBarFlag() -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+            NSGraphicsContext.saveGraphicsState()
+            defer { NSGraphicsContext.restoreGraphicsState() }
+            let flag = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 3.5, yRadius: 3.5)
+            flag.addClip()
+            NSColor.black.withAlphaComponent(0.4).setFill()
+            flag.fill()
+
+            // Match the app flag's wave, with a solid lower stripe and a translucent upper stripe.
+            let lowerStripe = NSBezierPath()
+            lowerStripe.move(to: NSPoint(x: 1, y: 1))
+            lowerStripe.line(to: NSPoint(x: 17, y: 1))
+            lowerStripe.line(to: NSPoint(x: 17, y: 9))
+            lowerStripe.curve(to: NSPoint(x: 1, y: 9),
+                              controlPoint1: NSPoint(x: 11.7, y: 11.2),
+                              controlPoint2: NSPoint(x: 6.9, y: 6.8))
+            lowerStripe.close()
+            // Copy replaces the translucent base so the lower stripe remains fully opaque.
+            NSGraphicsContext.current?.compositingOperation = .copy
+            NSColor.black.setFill()
+            lowerStripe.fill()
+            return true
+        }
+        // AppKit renders the alpha mask white on dark menu bars and dark on light menu bars.
+        image.isTemplate = true
+        image.accessibilityDescription = "Polish"
+        return image
+    }
+
+    func menuWillOpen(_ menu: NSMenu) { selectionActions.rememberSource() }
+
+    @objc private func polishSelection(_ sender: Any?) { selectionActions.run(action: .polish) }
+    @objc private func rerollSelection(_ sender: Any?) { selectionActions.run(action: .reroll) }
+
+    @objc private func openFromMenu(_ sender: Any?) { launchSettings() }
+
+    @objc private func quitFromMenu(_ sender: Any?) {
+        for application in NSRunningApplication.runningApplications(withBundleIdentifier: "com.cristian.polish.settings") {
+            application.terminate()
+        }
+        NSApp.terminate(sender)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = provider
+        selectionActions.onRestoreSource = { [weak self] in self?.statusItem?.menu?.cancelTracking() }
+        selectionActions.onCopied = { [weak self] action in
+            self?.completionSound.play(named: action.soundResource)
+        }
+        selectionActions.onStatus = { [weak self] status, working in
+            self?.selectionStatus.title = status
+            self?.selectionMenuItems.forEach { $0.isEnabled = !working }
+            self?.statusItem?.button?.toolTip = working ? status : "Polish"
+        }
+#if POLISH_INTEGRATION_TEST
+        if runIntegrationIfRequested() { return }
+#endif
+        preferences.observe { [weak self] values in self?.refreshMenuBarItem(values) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self = self, !self.provider.receivedRequest else { return }
             self.launchSettings()
         }
     }
+#if POLISH_INTEGRATION_TEST
+    private func runIntegrationIfRequested() -> Bool {
+        let arguments = CommandLine.arguments
+        guard let index = arguments.firstIndex(of: "--integration-selection") else { return false }
+        guard arguments.indices.contains(index + 1), let action = SelectionAction(rawValue: arguments[index + 1]) else {
+            print("integration: invalid action")
+            exit(2)
+        }
+        guard let expectedIndex = arguments.firstIndex(of: "--expected-source-bundle"),
+              arguments.indices.contains(expectedIndex + 1) else {
+            print("integration: expected source bundle required")
+            exit(2)
+        }
+        let expectedBundle = arguments[expectedIndex + 1]
+        guard expectedBundle != "com.openai.codex",
+              NSWorkspace.shared.frontmostApplication?.bundleIdentifier == expectedBundle else {
+            print("integration: source app is outside the permitted test scope")
+            exit(2)
+        }
+        selectionActions.integrationError = { message in
+            // SelectionActionError messages contain fixed UI text, never source or response content.
+            print("integration error: \(message)")
+            fflush(stdout)
+            exit(1)
+        }
+        selectionActions.onStatus = { status, working in
+            print("integration status: \(status)")
+            fflush(stdout)
+            if !working {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { exit(0) }
+            }
+        }
+        selectionActions.onCopied = { [weak self] action in
+            self?.completionSound.play(named: action.soundResource)
+            print("integration: result copied")
+            fflush(stdout)
+        }
+        selectionActions.integrationWithoutAX = arguments.contains("--without-ax")
+        selectionActions.rememberSource()
+        if arguments.contains("--activate-host") { NSApp.activate(ignoringOtherApps: true) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.selectionActions.run(action: action)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 85) {
+            print("integration: timed out")
+            fflush(stdout)
+            exit(124)
+        }
+        return true
+    }
+#endif
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { launchSettings(); return false }
     func launchSettings() {
         let url = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Polish Settings.app")

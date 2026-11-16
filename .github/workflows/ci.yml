@@ -28,6 +28,7 @@ jobs:
           key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo fmt --check
       - run: cargo test --locked
+      - run: ./scripts/test-mac.sh
   raycast:
     runs-on: macos-15
     timeout-minutes: 10
