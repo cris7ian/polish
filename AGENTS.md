@@ -11,6 +11,7 @@ Polish is a macOS writing app. Rune renders the editor and Settings tab. Rust ha
 - Run `./scripts/install.sh` to build and install the current source in `~/Applications/Polish.app`.
 - Add `--open` to open the installed app. Existing app processes keep their old code until reopened.
 - Do not register the project build as the installed app. Duplicate registrations can prevent the service from launching correctly.
+- Publish the notarized disk image and `appcast.xml` containing its Sparkle signature together. Increment `CFBundleVersion` in both app bundles for every release.
 
 ## Invariants
 

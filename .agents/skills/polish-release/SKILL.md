@@ -8,10 +8,11 @@ description: Prepare, verify, and publish Polish macOS releases and update its H
 Read `AGENTS.md`, `README.md`, and `scripts/release.sh` first. Preserve unrelated work and do not commit, push, or create a tag without explicit user intent.
 
 1. Inspect the worktree, current version, release history, and existing tags and artifacts. For a version bump, present patch, minor, and major choices neutrally and confirm the version.
-2. Update the Polish version in `Cargo.toml`, `Cargo.lock`, both macOS Info plists, and the README release example as needed. Run the applicable checks in `AGENTS.md` and verify the service works with the editor closed when service behavior changes.
+2. Update the Polish version in `Cargo.toml`, `Cargo.lock`, and both macOS Info plists. Increase `CFBundleVersion` in both plists. Run the applicable checks in `AGENTS.md` and verify the service works with the editor closed when service behavior changes.
 3. Run `./scripts/release.sh` to build a Developer ID-signed DMG for the current architecture. Do not overwrite an existing image. The output is not notarized yet.
 4. Use a configured Keychain notarization profile with `NOTARY_PROFILE=profile ./scripts/release.sh --notarize build/distribution/Polish-VERSION-ARCH.dmg`. Do not print credentials or local release configuration. Verify Apple accepts it, stapling succeeds, and Gatekeeper accepts it. Ask for a profile if none is configured; do not publish an unnotarized image as a finished release.
-5. When explicitly authorized, commit the intended changes, create the version tag, push, and publish the notarized DMG as a GitHub release. Verify the published asset and digest. Do not force-push or replace an existing tag or release.
+5. Generate the feed with `./scripts/release.sh --appcast build/distribution/Polish-VERSION-ARCH.dmg`. It contains the image signature; the feed itself is not signed. Keep the Sparkle signing key safe and maintain a secure backup.
+6. When explicitly authorized, commit the intended changes, create the version tag, push, and publish the notarized DMG and `build/distribution/appcast.xml` as a GitHub release. Verify the published assets and digest. Do not force-push or replace an existing tag or release.
 
 ## Homebrew cask
 
