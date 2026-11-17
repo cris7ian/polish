@@ -20,7 +20,7 @@ impl Action {
     pub(crate) fn prompt(self) -> &'static str {
         match self {
             Self::Rework => {
-                "Rewrite the selected passage for clarity and flow, preserving its meaning, language and voice."
+                "Rewrite the selected passage as a meaningfully different alternative that fits naturally in the document. Preserve the author's intended meaning, language, voice, and factual claims, but vary the wording or sentence structure. For a single word or short phrase, choose a context-appropriate alternative that serves the same purpose. Do not return the selection unchanged unless no suitable alternative exists. Do not add facts or commentary."
             }
             Self::Polish => {
                 "Correct spelling, grammar and punctuation in the selected passage. Make only necessary changes and preserve the author's voice."
@@ -173,6 +173,15 @@ mod tests {
         }
         let target = Target::from_selection("aéz".into(), (1, 3), Action::Rework).unwrap();
         assert_eq!(&target.document[target.start..target.end], "é");
+    }
+
+    #[test]
+    fn rework_requests_distinct_contextual_alternatives() {
+        let prompt = Action::Rework.prompt();
+        assert!(prompt.contains("meaningfully different alternative"));
+        assert!(prompt.contains("single word or short phrase"));
+        assert!(prompt.contains("unless no suitable alternative exists"));
+        assert!(prompt.contains("Preserve the author's intended meaning"));
     }
 
     #[test]

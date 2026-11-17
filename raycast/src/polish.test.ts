@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   hud: vi.fn(),
   polish: vi.fn(),
   tweet: vi.fn(),
+  reroll: vi.fn(),
 }));
 vi.mock("@raycast/api", () => ({
   Clipboard: {
@@ -29,9 +30,11 @@ vi.mock("@raycast/api", () => ({
 vi.mock("./polish-api", () => ({
   polishText: mocks.polish,
   polishTweet: mocks.tweet,
+  rerollText: mocks.reroll,
 }));
 import Command from "./polish";
 import TweetCommand from "./polish-tweet";
+import RerollCommand from "./polish-reroll";
 
 describe("Polish command", () => {
   beforeEach(() => {
@@ -49,6 +52,22 @@ describe("Polish command", () => {
     expect(mocks.tweet).toHaveBeenCalledWith("Bad speling", "test-key");
     expect(mocks.paste).not.toHaveBeenCalled();
     expect(mocks.copy).toHaveBeenCalledWith("A concise post");
+  });
+  it("rerolls the selection and pastes the alternative", async () => {
+    mocks.reroll.mockResolvedValue("Alternative");
+    await RerollCommand();
+    expect(mocks.reroll).toHaveBeenCalledWith("Bad speling", "test-key");
+    expect(mocks.paste).toHaveBeenCalledWith("Alternative");
+    expect(mocks.hud).toHaveBeenCalledWith("Rerolled and pasted");
+  });
+  it("copies a reroll if the selection changes", async () => {
+    mocks.reroll.mockResolvedValue("Alternative");
+    mocks.selected
+      .mockResolvedValueOnce("Original")
+      .mockResolvedValueOnce("Changed");
+    await RerollCommand();
+    expect(mocks.paste).not.toHaveBeenCalled();
+    expect(mocks.copy).toHaveBeenCalledWith("Alternative");
   });
   it("accepts 280 Unicode scalar values and rejects 281 without changing text or clipboard", async () => {
     mocks.tweet.mockResolvedValue("😀".repeat(280));

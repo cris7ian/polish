@@ -1,5 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
-import { polishText, polishTweet } from "./polish-api";
+import { polishText, polishTweet, rerollText } from "./polish-api";
+
+describe("rerollText", () => {
+  it("requests a distinct alternative while preserving meaning", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "completed",
+          output: [{ content: [{ type: "output_text", text: "delightful" }] }],
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(rerollText("delicious", "test-key", fetcher)).resolves.toBe(
+      "delightful",
+    );
+    const body = JSON.parse(String(fetcher.mock.calls[0][1]?.body));
+    expect(body.input).toBe("delicious");
+    expect(body.instructions).toContain("meaningfully different alternative");
+    expect(body.instructions).toContain(
+      "unless no suitable alternative exists",
+    );
+    expect(body.store).toBe(false);
+  });
+});
 
 describe("polishTweet", () => {
   it("requests a single 280-character post while preserving input", async () => {

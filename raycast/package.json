@@ -30,6 +30,22 @@
       ]
     },
     {
+      "name": "polish-reroll",
+      "title": "Reroll Text",
+      "description": "Rewrite selected or copied text as an alternative",
+      "mode": "no-view",
+      "icon": "polish.png",
+      "preferences": [
+        {
+          "name": "openaiApiKey",
+          "title": "OpenAI API Key",
+          "type": "password",
+          "required": true,
+          "description": "API key for rerolling text with OpenAI."
+        }
+      ]
+    },
+    {
       "name": "polish-tweet",
       "title": "Polish Tweet",
       "description": "Rewrite selected or copied text as a concise post",

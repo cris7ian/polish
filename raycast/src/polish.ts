@@ -15,8 +15,9 @@ interface Preferences {
 
 export async function runPolish(
   transform: (input: string, apiKey: string) => Promise<string>,
-  kind: "text" | "tweet",
+  kind: "text" | "tweet" | "reroll",
 ) {
+  const reroll = kind === "reroll";
   try {
     const { openaiApiKey } = getPreferenceValues<Preferences>();
     if (!openaiApiKey?.trim())
@@ -34,7 +35,11 @@ export async function runPolish(
       throw new Error("Select text or copy text to the clipboard first.");
     await showToast({
       style: Toast.Style.Animated,
-      title: kind === "tweet" ? "Polishing tweet…" : "Polishing text…",
+      title: reroll
+        ? "Rerolling text…"
+        : kind === "tweet"
+          ? "Polishing tweet…"
+          : "Polishing text…",
     });
     const result = await transform(input, openaiApiKey.trim());
     if (kind === "tweet" && Array.from(result).length > 280)
@@ -52,17 +57,17 @@ export async function runPolish(
       await Clipboard.copy(result);
       await showToast({
         style: Toast.Style.Success,
-        title: "Polished text copied",
+        title: reroll ? "Rerolled text copied" : "Polished text copied",
         message: "The original selection changed; paste it where you want.",
       });
       return;
     }
     await Clipboard.paste(result);
-    await showHUD("Polished and pasted");
+    await showHUD(reroll ? "Rerolled and pasted" : "Polished and pasted");
   } catch (error) {
     await showToast({
       style: Toast.Style.Failure,
-      title: "Could not polish text",
+      title: reroll ? "Could not reroll text" : "Could not polish text",
       message: error instanceof Error ? error.message : "Please try again.",
     });
   }
