@@ -1,4 +1,7 @@
 import AppKit
+#if canImport(Sparkle)
+import Sparkle
+#endif
 
 final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let preferences = HostPreferences()
@@ -6,6 +9,9 @@ final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private(set) lazy var provider = Provider(completionSound: completionSound)
     private var statusItem: NSStatusItem?
     private let selectionActions = SelectionActions()
+#if canImport(Sparkle)
+    private lazy var updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+#endif
     private var selectionMenuItems: [NSMenuItem] = []
     private let selectionStatus = NSMenuItem(title: "Select text in another app", action: nil, keyEquivalent: "")
     private func refreshMenuBarItem(_ preferences: HostPreferences.Values) {
@@ -40,6 +46,10 @@ final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let open = menu.addItem(withTitle: "Open Polish", action: #selector(openFromMenu), keyEquivalent: "")
         open.target = self
+#if canImport(Sparkle)
+        let update = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        update.target = self
+#endif
         menu.addItem(.separator())
         let quit = menu.addItem(withTitle: "Quit Polish", action: #selector(quitFromMenu), keyEquivalent: "q")
         quit.target = self
@@ -83,6 +93,22 @@ final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openFromMenu(_ sender: Any?) { launchSettings() }
 
+#if canImport(Sparkle)
+    @objc private func checkForUpdates(_ sender: Any?) { updater.checkForUpdates(sender) }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if !NSRunningApplication.runningApplications(withBundleIdentifier: "com.cristian.polish.settings").isEmpty || selectionActions.isWorking {
+            let alert = NSAlert()
+            alert.messageText = "Close the Polish editor before updating"
+            alert.informativeText = "Copy any text you want to keep, close the editor, and wait for any menu action to finish. Then try again."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+#endif
+
     @objc private func quitFromMenu(_ sender: Any?) {
         for application in NSRunningApplication.runningApplications(withBundleIdentifier: "com.cristian.polish.settings") {
             application.terminate()
@@ -91,6 +117,9 @@ final class Delegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+#if canImport(Sparkle)
+        _ = updater
+#endif
         NSApp.servicesProvider = provider
         selectionActions.onRestoreSource = { [weak self] in self?.statusItem?.menu?.cancelTracking() }
         selectionActions.onCopied = { [weak self] action in

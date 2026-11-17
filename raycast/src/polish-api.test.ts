@@ -20,6 +20,7 @@ describe("polishTweet", () => {
     expect(body.instructions).toContain("at most 280 characters");
     expect(body.instructions).toContain("Do not invent facts");
     expect(body.store).toBe(false);
+    expect(body.reasoning).toEqual({ effort: "low" });
   });
 });
 
@@ -43,6 +44,7 @@ describe("polishText", () => {
     expect(url).toBe("https://api.openai.com/v1/responses");
     expect(JSON.parse(String(options?.body))).toMatchObject({
       model: "gpt-6-luna",
+      reasoning: { effort: "low" },
       input: "This is corect.",
       store: false,
     });

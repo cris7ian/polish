@@ -34,6 +34,7 @@ async function requestText(
     },
     body: JSON.stringify({
       model: "gpt-6-luna",
+      reasoning: { effort: "low" },
       instructions,
       input,
       store: false,

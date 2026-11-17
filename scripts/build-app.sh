@@ -2,9 +2,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build --release
+./scripts/sparkle.sh
+sparkle_dir="build/Sparkle-2.10.1"
 mkdir -p build/Polish.app/Contents/MacOS
 cp mac/Info.plist build/Polish.app/Contents/Info.plist
 mkdir -p build/Polish.app/Contents/Resources build/Polish.iconset
+mkdir -p build/Polish.app/Contents/Frameworks
+ditto "$sparkle_dir/Sparkle.framework" build/Polish.app/Contents/Frameworks/Sparkle.framework
 for size in 16 32 128 256 512; do
   rsvg-convert -w "$size" -h "$size" assets/polish-logo.svg > "build/Polish.iconset/icon_${size}x${size}.png"
   double=$((size * 2))
@@ -31,7 +35,7 @@ if [ "${POLISH_INTEGRATION_TEST:-0}" = 1 ]; then
   fi
   polish_swift_flags=(-D POLISH_INTEGRATION_TEST)
 fi
-swiftc -swift-version 5 ${polish_swift_flags[@]+"${polish_swift_flags[@]}"} mac/main.swift "${polish_swift_modules[@]}" -o build/Polish.app/Contents/MacOS/Polish -framework AppKit
+swiftc -swift-version 5 ${polish_swift_flags[@]+"${polish_swift_flags[@]}"} -F "$sparkle_dir" mac/main.swift "${polish_swift_modules[@]}" -o build/Polish.app/Contents/MacOS/Polish -framework AppKit -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks
 # A stable signing identity lets macOS recognize the app across rebuilds.
 # Set POLISH_SIGNING_IDENTITY to choose a specific identity, or '-' for ad hoc signing.
 signing_identity="${POLISH_SIGNING_IDENTITY:-}"
@@ -50,6 +54,7 @@ if [ "${POLISH_RELEASE_SIGNING:-0}" = 1 ]; then
   if [ "$signing_identity" = '-' ]; then echo 'A Developer ID signing identity is required for release.' >&2; exit 1; fi
   signing_options=(--timestamp --options runtime)
 fi
+codesign --force --deep --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} build/Polish.app/Contents/Frameworks/Sparkle.framework
 codesign --force --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} "build/Polish.app/Contents/Helpers/Polish Settings.app"
 codesign --force --sign "$signing_identity" ${signing_options[@]+"${signing_options[@]}"} build/Polish.app
 codesign --verify --deep --strict build/Polish.app

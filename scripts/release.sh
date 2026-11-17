@@ -3,6 +3,36 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+if [ "${1:-}" = "--appcast" ]; then
+  if [ "$#" -ne 2 ] || [ ! -f "$2" ]; then
+    echo 'Usage: ./scripts/release.sh --appcast path/to/notarized-image.dmg' >&2
+    exit 2
+  fi
+  image="$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")"
+  xcrun stapler validate "$image"
+  spctl --assess --type open --context context:primary-signature "$image"
+  ./scripts/sparkle.sh
+  version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' mac/Info.plist)
+  archive_dir=$(mktemp -d "${TMPDIR:-/tmp}/polish-appcast.XXXXXX")
+  cleanup_appcast() {
+    if command -v trash >/dev/null 2>&1; then trash "$archive_dir" || true
+    elif [ -d "$HOME/.Trash" ]; then mv "$archive_dir" "$HOME/.Trash/$(basename "$archive_dir")"
+    else rm -r "$archive_dir"; fi
+  }
+  trap cleanup_appcast EXIT
+  cp "$image" "$archive_dir/"
+  build/Sparkle-2.10.1/bin/generate_appcast --account com.cristian.polish \
+    --download-url-prefix "https://github.com/cris7ian/polish/releases/download/v${version}/" \
+    --maximum-deltas 0 "$archive_dir"
+  if [ -e build/distribution/appcast.xml ]; then
+    echo 'Refusing to overwrite build/distribution/appcast.xml.' >&2
+    exit 1
+  fi
+  cp "$archive_dir/appcast.xml" build/distribution/appcast.xml
+  echo 'Created build/distribution/appcast.xml'
+  exit 0
+fi
+
 if [ "${1:-}" = "--notarize" ]; then
   if [ "$#" -ne 2 ] || [ -z "${NOTARY_PROFILE:-}" ]; then
     echo 'Usage: NOTARY_PROFILE=profile ./scripts/release.sh --notarize path/to/Polish.dmg' >&2
