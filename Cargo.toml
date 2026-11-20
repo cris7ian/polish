@@ -5,9 +5,14 @@ edition = "2024"
 
 [dependencies]
 arboard = { version = "3.6", default-features = false }
+base64 = "0.22"
+fs2 = "0.4"
+jsonwebtoken = "9"
+rand = "0.8"
 rune = { path = "vendor/rune", default-features = false, features = ["embedded-fonts", "metal-backend", "accessibility", "tooling"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 reqwest = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
 keyring = { version = "3", features = ["apple-native"] }
 

@@ -34,9 +34,10 @@ fn setting_toggle(
         )
 }
 
-fn model_option(name: &'static str, detail: &'static str, id: &'static str, selected: bool) -> El {
+fn model_option(name: &str, detail: &str, id: &str, selected: bool) -> El {
     let surface = if selected { 0xfff5f2 } else { 0xfffdfb };
     let border = if selected { 0xd2737d } else { 0xe6ded9 };
+    let pressed_id = id.to_string();
     row()
         .key(id)
         .role("radio")
@@ -59,7 +60,7 @@ fn model_option(name: &'static str, detail: &'static str, id: &'static str, sele
         .press(color(0xb84254).alpha(0.10))
         .press_scale(0.985)
         .motion(tok::motion::SNAPPY)
-        .on_press(move |s: &mut State| s.model = TextEdit::new(id))
+        .on_press(move |s: &mut State| s.model = TextEdit::new(pressed_id.clone()))
         .child(el().size(16.0, 16.0).radius(8.0).border(
             if selected { 5.0 } else { 1.5 },
             color(if selected { 0xb74255 } else { 0xcbbeba }),
@@ -73,6 +74,122 @@ fn model_option(name: &'static str, detail: &'static str, id: &'static str, sele
                 .child(label(detail, 11.0, 450.0, 0x887a76).w_full().wrap()),
         )
 }
+
+fn catalog_option(slug: &str, display: &str, selected: bool) -> El {
+    let surface = if selected { 0xfff5f2 } else { 0xfffdfb };
+    let border = if selected { 0xd2737d } else { 0xe6ded9 };
+    let pressed_slug = slug.to_string();
+    row()
+        .key(format!("catalog-{slug}"))
+        .role("radio")
+        .label(display)
+        .checked(selected)
+        .focusable(true)
+        .w_full()
+        .h(40.0)
+        .px(12.0)
+        .center_y()
+        .gap(10.0)
+        .radius(10.0)
+        .fill(color(surface))
+        .border(1.0, color(border))
+        .hover(color(0xb84254).alpha(0.04))
+        .press(color(0xb84254).alpha(0.10))
+        .press_scale(0.99)
+        .on_press(move |s: &mut State| s.model = TextEdit::new(pressed_slug.clone()))
+        .child(el().size(14.0, 14.0).radius(7.0).border(
+            if selected { 4.0 } else { 1.5 },
+            color(if selected { 0xb74255 } else { 0xcbbeba }),
+        ))
+        .child(label(display, 12.0, 600.0, 0x38282a))
+        .child(label(slug, 10.0, 450.0, 0x887a76))
+}
+
+fn continue_with_chatgpt(s: &State) -> El {
+    let busy = s.signing_in;
+    el().key("chatgpt-signin")
+        .role("button")
+        .label("Continue with ChatGPT")
+        .help("Sign in with your ChatGPT account to use your plan")
+        .help_above()
+        .focusable(!busy)
+        .h(45.0)
+        .w_full()
+        .center()
+        .radius(10.0)
+        .gradient(color(0xf7efeb), color(0xfffdfb))
+        .border(1.0, color(0xe5dad4))
+        .hover(color(0x783345).alpha(0.06))
+        .press(color(0x783345).alpha(0.10))
+        .press_scale(0.99)
+        .on_press(move |s: &mut State| start_chatgpt_sign_in(s))
+        .child(label(
+            if busy {
+                "Opening ChatGPT…"
+            } else {
+                "Continue with ChatGPT"
+            },
+            13.0,
+            650.0,
+            0xb74255,
+        ))
+}
+
+fn chatgpt_signed_in(s: &State) -> El {
+    let account = s
+        .plan_email
+        .clone()
+        .unwrap_or_else(|| "ChatGPT account".into());
+    col()
+        .key("chatgpt-account")
+        .gap(8.0)
+        .child(
+            row()
+                .w_full()
+                .center_y()
+                .justify_between()
+                .child(
+                    col()
+                        .gap(3.0)
+                        .child(label("Signed in with ChatGPT", 13.0, 650.0, 0x38282a))
+                        .child(label(account, 11.0, 500.0, 0x887a76)),
+                )
+                .child(
+                    el().key("chatgpt-signout")
+                        .role("button")
+                        .label("Sign out")
+                        .focusable(!s.signing_out)
+                        .h(34.0)
+                        .px(14.0)
+                        .center()
+                        .radius(10.0)
+                        .hover(color(0x783345).alpha(0.06))
+                        .press(color(0x783345).alpha(0.10))
+                        .on_press(move |s: &mut State| start_chatgpt_sign_out(s))
+                        .child(label(
+                            if s.signing_out {
+                                "Signing out…"
+                            } else {
+                                "Sign out"
+                            },
+                            12.0,
+                            550.0,
+                            0x9e686d,
+                        )),
+                ),
+        )
+        .child(
+            label(
+                "Requests use your ChatGPT plan allowance. Manage apps and limits at chatgpt.com/settings/usage.",
+                11.0,
+                450.0,
+                0x887a76,
+            )
+            .w_full()
+            .wrap(),
+        )
+}
+
 pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
     let field = |edit: &TextEdit| {
         text_input(edit, TextStyle::new(14.0, 500.0))
@@ -93,12 +210,29 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
             .gradient(color(0xf9f5f2), color(0xfffdfb))
             .border(1.0, color(0xe5dad4))
     };
-    let (dot, connection) = match s.key_status {
-        KeyStatus::Missing => (0xc54a58, "No API key"),
-        KeyStatus::Checking => (0xc7a365, "Checking key…"),
-        KeyStatus::Valid => (0x4f9e72, "Key verified"),
-        KeyStatus::Invalid => (0xc54a58, "Invalid API key"),
-        KeyStatus::Unavailable => (0xc7a365, "Could not verify key"),
+    let (dot, connection) = if s.auth == "chatgpt" {
+        if s.signing_in {
+            (0xc7a365, "Opening ChatGPT…".to_string())
+        } else if s.plan_checking {
+            (0xc7a365, "Checking your plan…".to_string())
+        } else if let Some(problem) = &s.plan_problem {
+            (0xc54a58, problem.clone())
+        } else if s.plan_email.is_some() && s.plan_usage {
+            (0x4f9e72, "Using your ChatGPT plan".to_string())
+        } else if s.plan_email.is_some() {
+            (0xc7a365, "Signed in — plan usage off".to_string())
+        } else {
+            (0xc54a58, "Sign in again".to_string())
+        }
+    } else {
+        let (dot, text) = match s.key_status {
+            KeyStatus::Missing => (0xc54a58, "No API key"),
+            KeyStatus::Checking => (0xc7a365, "Checking key…"),
+            KeyStatus::Valid => (0x4f9e72, "Key verified"),
+            KeyStatus::Invalid => (0xc54a58, "Invalid API key"),
+            KeyStatus::Unavailable => (0xc7a365, "Could not verify key"),
+        };
+        (dot, text.to_string())
     };
     col()
         .key("settings-page")
@@ -137,7 +271,7 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                 .center_y()
                                 .gap(7.0)
                                 .child(el().size(8.0, 8.0).radius(4.0).fill(color(dot)))
-                                .child(label(connection, 11.0, 550.0, dot)),
+                                .child(label(connection, 11.0, 550.0, dot).w_full().wrap()),
                         ),
                 )
                 .child(el().w_full().h(1.0).fill(color(0xefe7e2)))
@@ -162,7 +296,7 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                         .grow(1.0)
                                         .on_edit(|s: &mut State| &mut s.key),
                                 )
-                                .child(if s.key_saved {
+                                .child(if s.key_saved && s.auth != "chatgpt" {
                                     el().key("copy-key")
                                         .role("button")
                                         .label("Copy API key")
@@ -192,6 +326,20 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                     el().size(0.0, 0.0)
                                 }),
                         ),
+                )
+                .child(
+                    col()
+                        .gap(8.0)
+                        .child(
+                            row()
+                                .w_full()
+                                .child(label("CHATGPT PLAN", 10.0, 700.0, 0x917e79)),
+                        )
+                        .child(if s.auth == "chatgpt" {
+                            chatgpt_signed_in(s)
+                        } else {
+                            continue_with_chatgpt(s)
+                        }),
                 )
                 .child(
                     col()
@@ -231,6 +379,34 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                     s.model.text == "gpt-6-astra",
                                 )),
                         )
+                        .child(if s.auth == "chatgpt" && !s.catalog.is_empty() {
+                            col()
+                                .key("catalog")
+                                .gap(6.0)
+                                .child(label("ON YOUR CHATGPT PLAN", 10.0, 700.0, 0x917e79))
+                                .children(
+                                    s.catalog
+                                        .iter()
+                                        .take(8)
+                                        .map(|(slug, display)| {
+                                            catalog_option(slug, display, s.model.text == *slug)
+                                        })
+                                        .collect::<Vec<_>>(),
+                                )
+                                .children((s.catalog.len() > 8).then(|| {
+                                    label(
+                                        format!(
+                                            "{} more models on your plan.",
+                                            s.catalog.len() - 8
+                                        ),
+                                        11.0,
+                                        450.0,
+                                        0x887a76,
+                                    )
+                                }))
+                        } else {
+                            el().size(0.0, 0.0)
+                        })
                         .children(
                             (!["gpt-6-luna", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra"]
                                 .contains(&s.model.text.as_str()))
@@ -290,7 +466,7 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                 .on_press(save)
                                 .child(label("Save settings", 13.0, 650.0, 0xffffff)),
                         )
-                        .child(
+                        .child(if s.auth != "chatgpt" {
                             el().key("remove")
                                 .role("button")
                                 .label("Remove key")
@@ -312,8 +488,10 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                                         Err(e) => format!("Could not remove key: {e}"),
                                     };
                                 })
-                                .child(label("Remove key", 12.0, 550.0, 0x9e686d)),
-                        ),
+                                .child(label("Remove key", 12.0, 550.0, 0x9e686d))
+                        } else {
+                            el().size(0.0, 0.0)
+                        }),
                 )
                 .child(label(&s.status, 11.0, 500.0, 0x8a7972).w_full().wrap()),
         )

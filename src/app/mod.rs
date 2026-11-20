@@ -3,6 +3,7 @@ use crate::{
     credentials,
     editing::{Action, Target, WorkResult},
     engine::{KeyStatus, run_action, verify_key},
+    siwc,
 };
 use rune::{AppSpec, Latest, Player, TextEdit};
 use std::collections::HashMap;
@@ -36,6 +37,18 @@ struct State {
     error_sound: Option<Player>,
     symbol_cache: Option<rune::ImageCache>,
     symbols: HashMap<String, rune::Image>,
+    /// "api-key" or "chatgpt".
+    auth: String,
+    plan_email: Option<String>,
+    plan_usage: bool,
+    plan_checking: bool,
+    signing_in: bool,
+    signing_out: bool,
+    plan_problem: Option<String>,
+    catalog: Vec<(String, String)>,
+    sign_in: Latest<Result<siwc::SignInOutcome, String>>,
+    sign_out: Latest<Result<String, String>>,
+    plan_check: Latest<Result<siwc::PlanCheck, String>>,
 }
 impl Default for State {
     fn default() -> Self {
@@ -44,7 +57,17 @@ impl Default for State {
 }
 impl State {
     fn new(cfg: Config, key_saved: bool) -> Self {
-        let status = if key_saved {
+        let auth = cfg.auth.clone();
+        let connected_with_plan = auth == "chatgpt" && credentials::read_oauth().is_ok();
+        let plan_email = if connected_with_plan {
+            siwc::signed_in_email()
+        } else {
+            None
+        };
+        let plan_usage = connected_with_plan && siwc::signed_in_plan_usage();
+        let status = if connected_with_plan {
+            "Connected with your ChatGPT plan"
+        } else if key_saved {
             "API key saved in Keychain"
         } else {
             "Add an OpenAI API key to get started"
@@ -54,7 +77,7 @@ impl State {
             model: TextEdit::new(&cfg.model),
             status: status.into(),
             key_saved,
-            key_status: if key_saved {
+            key_status: if key_saved && auth != "chatgpt" {
                 KeyStatus::Checking
             } else {
                 KeyStatus::Missing
@@ -77,6 +100,17 @@ impl State {
             error_sound: None,
             symbol_cache: None,
             symbols: HashMap::new(),
+            auth,
+            plan_email,
+            plan_usage,
+            plan_checking: connected_with_plan,
+            signing_in: false,
+            signing_out: false,
+            plan_problem: None,
+            catalog: Vec::new(),
+            sign_in: Latest::default(),
+            sign_out: Latest::default(),
+            plan_check: Latest::default(),
         }
     }
 }
@@ -97,23 +131,36 @@ fn save(s: &mut State) {
         s.status = "Enter a model ID.".into();
         return;
     }
+    let typed_key = s.key.text.trim().to_string();
     let result = (|| {
-        if !s.key.text.trim().is_empty() {
-            credentials::write(s.key.text.trim())?;
+        if !typed_key.is_empty() {
+            credentials::write(&typed_key)?;
         }
-        save_config(&Config {
-            model: model.into(),
-            sound: s.sound,
-            paste_on_startup: s.paste_on_startup,
-            menu_bar_icon: s.menu_bar_icon,
-        })
+        let mut config = load_config();
+        config.model = model.into();
+        config.sound = s.sound;
+        config.paste_on_startup = s.paste_on_startup;
+        config.menu_bar_icon = s.menu_bar_icon;
+        // Saving an API key switches the active connection to it; saving with
+        // the key field empty keeps the current method untouched.
+        if !typed_key.is_empty() {
+            config.auth = "api-key".into();
+        }
+        save_config(&config)
     })();
     match result {
         Ok(()) => {
-            s.key_saved = s.key_saved || !s.key.text.trim().is_empty();
+            if !typed_key.is_empty() {
+                s.key_saved = true;
+                s.auth = "api-key".into();
+                s.plan_problem = None;
+            }
             s.key = TextEdit::default().secure();
             s.status = "Settings saved".into();
-            if s.key_saved {
+            if s.auth == "chatgpt" {
+                s.plan_checking = true;
+                s.plan_check.request((), |_| siwc::verify_plan());
+            } else if s.key_saved {
                 s.key_status = KeyStatus::Checking;
                 s.key_check.request((), |_| verify_key());
             }
@@ -121,6 +168,41 @@ fn save(s: &mut State) {
         Err(e) => s.status = format!("Could not save: {e}"),
     }
 }
+fn start_chatgpt_sign_in(s: &mut State) {
+    if s.signing_in {
+        return;
+    }
+    s.signing_in = true;
+    s.plan_problem = None;
+    s.status = "Opening ChatGPT in your browser…".into();
+    s.sign_in.request((), |_| siwc::sign_in());
+}
+
+fn start_chatgpt_sign_out(s: &mut State) {
+    if s.signing_out {
+        return;
+    }
+    s.signing_out = true;
+    s.status = "Signing out…".into();
+    s.sign_out.request((), |_| siwc::sign_out());
+}
+
+/// Shows the account's model catalog and follows it when the saved model is
+/// not on the plan. Switching models only edits the field; the user saves.
+fn apply_catalog(s: &mut State, catalog: Vec<(String, String)>) {
+    s.catalog = catalog;
+    if s.auth != "chatgpt" || s.catalog.is_empty() {
+        return;
+    }
+    if !s.catalog.iter().any(|(slug, _)| slug == &s.model.text) {
+        let (slug, display) = s.catalog[0].clone();
+        s.model = TextEdit::new(slug);
+        s.status = format!(
+            "Your saved model is not on your ChatGPT plan — switched to {display}. Save settings to apply."
+        );
+    }
+}
+
 fn handle_shortcut(s: &mut State, event: &rune::KeyEvent, tx: &mut rune::Tx) -> bool {
     if s.settings_open {
         return false;
@@ -161,8 +243,13 @@ fn begin_action(s: &mut State, action: Action) {
         s.work_status = "Add some text first.".into();
         return;
     };
-    if !s.key_saved {
-        s.work_status = "Add an API key in Settings first.".into();
+    if s.auth == "chatgpt" {
+        if credentials::read_oauth().is_err() {
+            s.work_status = "Open Settings to sign in with ChatGPT again.".into();
+            return;
+        }
+    } else if !s.key_saved {
+        s.work_status = "Add an API key in Settings, or use Continue with ChatGPT.".into();
         return;
     }
     s.working = true;
@@ -231,6 +318,9 @@ pub(crate) fn run() {
         }
         s.key_check.set_waker(waker.clone());
         s.work.set_waker(waker.clone());
+        s.sign_in.set_waker(waker.clone());
+        s.sign_out.set_waker(waker.clone());
+        s.plan_check.set_waker(waker.clone());
         let cache = rune::ImageCache::new(waker);
         if let Some(resources) = bundle_resources() {
             for name in [
@@ -263,7 +353,12 @@ pub(crate) fn run() {
             ));
         }
         s.symbol_cache = Some(cache);
-        if s.key_saved {
+        if s.auth == "chatgpt" {
+            if credentials::read_oauth().is_ok() {
+                s.plan_checking = true;
+                s.plan_check.request((), |_| siwc::verify_plan());
+            }
+        } else if s.key_saved {
             s.key_check.request((), |_| verify_key());
         }
     });
@@ -274,6 +369,60 @@ pub(crate) fn run() {
         }
         if let Some(result) = s.key_check.take() {
             s.key_status = result;
+            changed = true;
+        }
+        if let Some(result) = s.sign_in.take() {
+            s.signing_in = false;
+            match result {
+                Ok(outcome) => {
+                    s.auth = "chatgpt".into();
+                    s.plan_email = Some(outcome.email.clone());
+                    s.plan_usage = outcome.plan_usage;
+                    s.plan_problem = None;
+                    s.plan_checking = false;
+                    apply_catalog(s, outcome.catalog);
+                    s.status = if outcome.plan_usage {
+                        format!("Signed in as {} — using your ChatGPT plan", outcome.email)
+                    } else {
+                        "Signed in — allow plan usage in your browser to use the subscription"
+                            .into()
+                    };
+                }
+                Err(error) => {
+                    s.status = error;
+                }
+            }
+            changed = true;
+        }
+        if let Some(result) = s.sign_out.take() {
+            s.signing_out = false;
+            match result {
+                Ok(message) => {
+                    s.auth = "api-key".into();
+                    s.plan_email = None;
+                    s.plan_usage = false;
+                    s.plan_checking = false;
+                    s.plan_problem = None;
+                    s.catalog.clear();
+                    s.status = message;
+                }
+                Err(error) => s.status = error,
+            }
+            changed = true;
+        }
+        if let Some(result) = s.plan_check.take() {
+            s.plan_checking = false;
+            match result {
+                Ok(check) => {
+                    s.plan_email = Some(check.email);
+                    s.plan_usage = check.plan_usage;
+                    s.plan_problem = None;
+                    apply_catalog(s, check.catalog);
+                }
+                Err(error) => {
+                    s.plan_problem = Some(error);
+                }
+            }
             changed = true;
         }
         if let Some(result) = s.work.take() {

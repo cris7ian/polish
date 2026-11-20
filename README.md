@@ -10,7 +10,7 @@ Download the [latest release](https://github.com/cris7ian/polish/releases/latest
 brew install --cask cris7ian/tap/polish
 ```
 
-The release supports Apple silicon Macs running macOS 13 or later. Open Polish, add an OpenAI API key in Settings, and choose a model.
+The release supports Apple silicon Macs running macOS 13 or later. Open Polish, sign in with **Continue with ChatGPT** to use your ChatGPT Plus or Pro plan, or add an OpenAI API key in Settings, and choose a model.
 
 ## Use
 
@@ -22,7 +22,7 @@ The menu bar also has **Check for Updates**. Polish can check for updates automa
 
 ## Privacy
 
-Polish sends text to OpenAI only when you choose an action. Editor actions send the whole document and selected passage. Menu actions send the available document context, or only the selection when the app does not expose the document. Your API key stays in macOS Keychain. OpenAI API usage is billed separately.
+Polish sends text to OpenAI only when you choose an action. Editor actions send the whole document and selected passage. Menu actions send the available document context, or only the selection when the app does not expose the document. API keys and sign-in credentials stay in macOS Keychain. OpenAI API usage is billed separately; ChatGPT plan usage draws on the allowance your plan already includes, and you can cap it in ChatGPT Settings → Usage.
 
 The editor pastes clipboard text on startup by default; you can turn this off in Settings.
 

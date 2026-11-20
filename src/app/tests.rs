@@ -66,7 +66,7 @@ fn writing_shortcuts_reach_actions_without_hijacking_settings() {
         });
         rt.frame(0.0);
         assert_eq!(
-            rt.state.work_status, "Add an API key in Settings first.",
+            rt.state.work_status, "Add an API key in Settings, or use Continue with ChatGPT.",
             "shortcut {key}"
         );
     }
@@ -557,4 +557,86 @@ fn model_choices_update_the_editable_model_id() {
     runtime.pointer_up(x, y);
     runtime.frame(0.0);
     assert_eq!(runtime.state.model.text, "gpt-6.1-terra");
+}
+#[test]
+fn chatgpt_sign_in_button_is_offered_for_api_key_users() {
+    let state = State {
+        settings_open: true,
+        ..test_state()
+    };
+    let mut runtime = rune::Runtime::new(state, view, (600.0, 760.0), rune::Env::new(false, 1.0));
+    runtime.frame(0.0);
+    let (x, y) = runtime.find("chatgpt-signin").unwrap();
+    // Pressing must not attempt a real sign-in from tests: the button is
+    // present, labelled, and reachable without opening a browser here.
+    let elements = runtime.elements();
+    let button = elements
+        .iter()
+        .find(|element| element.key.as_deref() == Some("chatgpt-signin"))
+        .unwrap();
+    assert_eq!(button.label.as_deref(), Some("Continue with ChatGPT"));
+    assert!(x > 0.0 && y > 0.0);
+    assert!(
+        runtime.find("chatgpt-signout").is_none(),
+        "sign-out must be hidden before signing in"
+    );
+    assert!(
+        runtime.find("catalog").is_none(),
+        "no catalog without sign-in"
+    );
+}
+#[test]
+fn chatgpt_account_shows_sign_out_and_catalog_models() {
+    let mut state = State {
+        settings_open: true,
+        auth: "chatgpt".into(),
+        plan_email: Some("user@example.com".into()),
+        plan_usage: true,
+        catalog: vec![
+            ("gpt-plan-a".to_string(), "Plan A".to_string()),
+            ("gpt-plan-b".to_string(), "Plan B".to_string()),
+        ],
+        ..test_state()
+    };
+    // The saved model is not on the plan catalog, so it switches to the first.
+    state.model = TextEdit::new("gpt-plan-a");
+    let mut runtime = rune::Runtime::new(state, view, (600.0, 760.0), rune::Env::new(false, 1.0));
+    runtime.frame(0.0);
+    runtime
+        .find("chatgpt-signout")
+        .expect("sign out is visible");
+    assert!(
+        runtime.find("chatgpt-signin").is_none(),
+        "sign-in hidden once signed in"
+    );
+    let (x, y) = runtime.find("catalog-gpt-plan-b").unwrap();
+    runtime.pointer_down(x, y);
+    runtime.pointer_up(x, y);
+    runtime.frame(0.0);
+    assert_eq!(runtime.state.model.text, "gpt-plan-b");
+}
+#[test]
+fn apply_catalog_switches_off_plan_models_and_keeps_available_ones() {
+    let mut state = test_state();
+    state.auth = "chatgpt".into();
+    state.model = TextEdit::new("gpt-6-luna");
+    apply_catalog(&mut state, vec![("gpt-plan-a".into(), "Plan A".into())]);
+    assert_eq!(state.model.text, "gpt-plan-a");
+    assert!(state.status.contains("Save settings to apply"));
+    // A model that is on the plan stays untouched.
+    apply_catalog(
+        &mut state,
+        vec![
+            ("gpt-plan-a".into(), "Plan A".into()),
+            ("gpt-plan-b".into(), "Plan B".into()),
+        ],
+    );
+    assert_eq!(state.model.text, "gpt-plan-a");
+    assert!(!state.status.contains("switched to Plan B"));
+    // The catalog never overrides API-key users.
+    let mut key_state = test_state();
+    key_state.auth = "api-key".into();
+    key_state.model = TextEdit::new("gpt-6-luna");
+    apply_catalog(&mut key_state, vec![("gpt-plan-a".into(), "Plan A".into())]);
+    assert_eq!(key_state.model.text, "gpt-6-luna");
 }

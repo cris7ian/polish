@@ -3,6 +3,7 @@ mod config;
 mod credentials;
 mod editing;
 mod engine;
+mod siwc;
 
 use engine::{edit_selection, polish};
 use std::io::{self, Read};

@@ -15,7 +15,12 @@ Select text before choosing an action. With no selection, Polish uses the whole 
 
 The Tweet action rejects results longer than 280 Unicode characters. X may count some characters differently.
 
-Paste on startup, sounds, and the menu bar icon can be changed in Settings. The API key status shows whether OpenAI accepted the key; it does not confirm model access or billing. The key copy button keeps the key on the clipboard for up to 30 seconds.
+Paste on startup, sounds, and the menu bar icon can be changed in Settings. Connect in one of two ways:
+
+- **Continue with ChatGPT** signs you in with your ChatGPT account in your browser. Eligible Plus and Pro plans can use the plan allowance for Polish; manage and cap it in ChatGPT Settings → Usage. The model picker then lists the models available on your plan. Signing out keeps the registration, so signing back in skips re-registering.
+- **API key** pays per request from your OpenAI account. The key status shows whether OpenAI accepted the key; it does not confirm model access or billing. The key copy button keeps the key on the clipboard for up to 30 seconds.
+
+Saving a key makes it the active connection again. Credentials stay in Keychain.
 
 ## Other apps
 
