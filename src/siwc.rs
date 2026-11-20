@@ -385,11 +385,41 @@ fn validate_id_token(id_token: &str, audience: &str, nonce: &str) -> Result<IdCl
     Ok(IdClaims { subject, email })
 }
 
+/// `ext_agent_host_id` must be an opaque URI-formatted identifier; OpenAI
+/// accepts `urn:ietf:params:oauth:jwk-thumbprint:…`, `urn:uuid:…`, or
+/// `did:key:…`. See https://developers.openai.com/siwc/token-sharing-open-source
+fn valid_host_id(id: &str) -> bool {
+    id.starts_with("urn:uuid:")
+        || id.starts_with("urn:ietf:params:oauth:jwk-thumbprint:")
+        || id.starts_with("did:key:")
+}
+
+/// Hyphenated UUIDv4 per RFC 9562 §5.4.
+fn uuid_v4() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let mut bytes = [0u8; 16];
+    rng.fill(&mut bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    )
+}
+
 fn ensure_host_id(cfg: &mut Config) -> Result<(), String> {
-    if cfg.host_id.as_deref().is_some_and(|id| !id.is_empty()) {
+    if cfg.host_id.as_deref().is_some_and(valid_host_id) {
         return Ok(());
     }
-    cfg.host_id = Some(random_url_safe(21));
+    // Regenerate host IDs saved in a rejected format before the first
+    // successful sign-in; no registration depends on them yet.
+    cfg.host_id = Some(format!("urn:uuid:{}", uuid_v4()));
     save_config(cfg)
 }
 
@@ -848,5 +878,30 @@ mod tests {
         }
         assert!(!refresh_error_is_terminal("temporarily_unavailable"));
         assert!(!refresh_error_is_terminal("invalid_client"));
+    }
+
+    #[test]
+    fn host_ids_use_an_accepted_uri_format_and_bad_ones_are_replaced() {
+        let generated = format!("urn:uuid:{}", uuid_v4());
+        assert!(valid_host_id(&generated), "{generated}");
+        let hex = generated.trim_start_matches("urn:uuid:").to_string();
+        let parts: Vec<&str> = hex.split('-').collect();
+        assert_eq!(
+            parts.iter().map(|p| p.len()).collect::<Vec<_>>(),
+            vec![8, 4, 4, 4, 12]
+        );
+        assert!(parts[2].starts_with('4'), "UUIDv4 version nibble");
+        assert!(parts[3].starts_with(['8', '9', 'a', 'b']), "UUIDv4 variant");
+
+        assert!(valid_host_id(
+            "urn:uuid:00000000-000-4000-8000-000000000000"
+        ));
+        assert!(valid_host_id(
+            "urn:ietf:params:oauth:jwk-thumbprint:NzbLsXh8uDCc-"
+        ));
+        assert!(valid_host_id("did:key:z6MkhaXg"));
+        // The bare-random format OpenAI rejected must be treated as invalid.
+        assert!(!valid_host_id("Pv_cyjGhv1vxUTwzjZ2oL"));
+        assert!(!valid_host_id(""));
     }
 }
