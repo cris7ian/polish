@@ -1,7 +1,7 @@
 use super::*;
 use rune::{
-    Color, Cx, El, LineCap, Path, ScrollSpec, SelectionStyle, Shape, TextStyle, Transition, col,
-    el, row, text, text_input, tok,
+    Color, Cx, El, LineCap, Path, PopupMenu, ScrollSpec, SelectionStyle, Shape, TextStyle,
+    Transition, col, el, row, text, text_input, tok,
 };
 use std::time::Duration;
 
@@ -167,6 +167,12 @@ fn glyph(kind: &str, ink: Color, symbols: &HashMap<String, rune::Image>) -> El {
                 .line_to([18.0, 12.0])
                 .move_to([9.0, 17.0])
                 .line_to([15.0, 17.0]),
+        ),
+        "chevron" => line(
+            Path::new()
+                .move_to([6.0, 9.0])
+                .line_to([12.0, 15.0])
+                .line_to([18.0, 9.0]),
         ),
         _ => Shape::new()
             .fill(

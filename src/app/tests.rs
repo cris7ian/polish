@@ -581,12 +581,12 @@ fn chatgpt_sign_in_button_is_offered_for_api_key_users() {
         "sign-out must be hidden before signing in"
     );
     assert!(
-        runtime.find("catalog").is_none(),
-        "no catalog without sign-in"
+        runtime.find("model-select").is_none(),
+        "the plan select stays hidden for API-key users"
     );
 }
 #[test]
-fn chatgpt_account_shows_sign_out_and_catalog_models() {
+fn chatgpt_account_shows_sign_out_and_selects_catalog_models() {
     let mut state = State {
         settings_open: true,
         auth: "chatgpt".into(),
@@ -609,12 +609,37 @@ fn chatgpt_account_shows_sign_out_and_catalog_models() {
         runtime.find("chatgpt-signin").is_none(),
         "sign-in hidden once signed in"
     );
-    let (x, y) = runtime.find("catalog-gpt-plan-b").unwrap();
+    // The preset cards are an API-key view; a signed-in plan uses the select.
+    assert!(
+        runtime.find("gpt-6-luna").is_none(),
+        "cards hidden under the plan"
+    );
+    assert!(
+        runtime.find("gpt-6-astra").is_none(),
+        "cards hidden under the plan"
+    );
+    let (x, y) = runtime
+        .find("model-select")
+        .expect("the model select is visible");
     runtime.pointer_down(x, y);
     runtime.pointer_up(x, y);
     runtime.frame(0.0);
+    assert!(
+        runtime.popup_menu().is_some(),
+        "the select opens its catalog menu"
+    );
+    runtime.resolve_popup(Some("gpt-plan-b")).unwrap();
+    runtime.frame(0.0);
+    assert_eq!(runtime.state.model.text, "gpt-plan-b");
+    // Dismissing the menu leaves the model untouched.
+    runtime.pointer_down(x, y);
+    runtime.pointer_up(x, y);
+    runtime.frame(0.0);
+    runtime.resolve_popup(None).unwrap();
+    runtime.frame(0.0);
     assert_eq!(runtime.state.model.text, "gpt-plan-b");
 }
+
 #[test]
 fn apply_catalog_switches_off_plan_models_and_keeps_available_ones() {
     let mut state = test_state();

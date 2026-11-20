@@ -75,34 +75,105 @@ fn model_option(name: &str, detail: &str, id: &str, selected: bool) -> El {
         )
 }
 
-fn catalog_option(slug: &str, display: &str, selected: bool) -> El {
-    let surface = if selected { 0xfff5f2 } else { 0xfffdfb };
-    let border = if selected { 0xd2737d } else { 0xe6ded9 };
-    let pressed_slug = slug.to_string();
+fn model_select(s: &State) -> El {
+    let current = s
+        .catalog
+        .iter()
+        .find(|(slug, _)| slug == &s.model.text)
+        .map(|(_, display)| display.clone())
+        .unwrap_or_else(|| s.model.text.clone());
+    let placeholder = if s.plan_checking {
+        "Loading your models…"
+    } else if s.catalog.is_empty() {
+        "Models appear after your plan check"
+    } else {
+        current.as_str()
+    };
     row()
-        .key(format!("catalog-{slug}"))
-        .role("radio")
-        .label(display)
-        .checked(selected)
+        .key("model-select")
+        .role("combobox")
+        .label("Model")
+        .help("Choose a model available on your plan")
         .focusable(true)
         .w_full()
-        .h(40.0)
-        .px(12.0)
+        .h(45.0)
+        .px(14.0)
         .center_y()
-        .gap(10.0)
+        .justify_between()
         .radius(10.0)
-        .fill(color(surface))
-        .border(1.0, color(border))
-        .hover(color(0xb84254).alpha(0.04))
-        .press(color(0xb84254).alpha(0.10))
+        .gradient(color(0xf9f5f2), color(0xfffdfb))
+        .border(1.0, color(0xe5dad4))
+        .hover(color(0x783345).alpha(0.06))
+        .press(color(0x783345).alpha(0.10))
         .press_scale(0.99)
-        .on_press(move |s: &mut State| s.model = TextEdit::new(pressed_slug.clone()))
-        .child(el().size(14.0, 14.0).radius(7.0).border(
-            if selected { 4.0 } else { 1.5 },
-            color(if selected { 0xb74255 } else { 0xcbbeba }),
-        ))
-        .child(label(display, 12.0, 600.0, 0x38282a))
-        .child(label(slug, 10.0, 450.0, 0x887a76))
+        .on_press_tx(|s: &mut State, tx| {
+            // The long catalog lives in a native menu, so it scrolls and
+            // keyboard-navigates the way the system does everywhere else.
+            let options: Vec<(String, String)> = if s.catalog.is_empty() {
+                vec![(s.model.text.clone(), s.model.text.clone())]
+            } else {
+                s.catalog.clone()
+            };
+            let menu = PopupMenu::picker(options, &s.model.text);
+            tx.popup_menu(menu, "model-select", |s: &mut State, picked, _| {
+                if let Some(slug) = picked {
+                    s.model = TextEdit::new(slug);
+                }
+            });
+        })
+        .child(label(placeholder, 14.0, 500.0, 0x38282a))
+        .child(glyph("chevron", color(0x795b59), &s.symbols))
+}
+
+fn model_cards(s: &State) -> El {
+    col()
+        .gap(8.0)
+        .child(
+            row()
+                .w_full()
+                .gap(10.0)
+                .child(model_option(
+                    "GPT-6 Luna",
+                    "Fast & efficient",
+                    "gpt-6-luna",
+                    s.model.text == "gpt-6-luna",
+                ))
+                .child(model_option(
+                    "GPT-6.1 Terra",
+                    "Natural writing",
+                    "gpt-6.1-terra",
+                    s.model.text == "gpt-6.1-terra",
+                )),
+        )
+        .child(
+            row()
+                .w_full()
+                .gap(10.0)
+                .child(model_option(
+                    "GPT-6.1 Sol",
+                    "Complex work",
+                    "gpt-6.1-sol",
+                    s.model.text == "gpt-6.1-sol",
+                ))
+                .child(model_option(
+                    "GPT-6 Astra",
+                    "Most expensive, not for this kind of work but you do you",
+                    "gpt-6-astra",
+                    s.model.text == "gpt-6-astra",
+                )),
+        )
+        .children(
+            (!["gpt-6-luna", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra"]
+                .contains(&s.model.text.as_str()))
+            .then(|| {
+                label(
+                    format!("Saved model: {}", s.model.text),
+                    11.0,
+                    500.0,
+                    0x887a76,
+                )
+            }),
+        )
 }
 
 fn continue_with_chatgpt(s: &State) -> El {
@@ -345,80 +416,11 @@ pub(super) fn settings_view(s: &State, _: &mut Cx<State>) -> El {
                     col()
                         .gap(8.0)
                         .child(label("MODEL", 10.0, 700.0, 0x917e79))
-                        .child(
-                            row()
-                                .w_full()
-                                .gap(10.0)
-                                .child(model_option(
-                                    "GPT-6 Luna",
-                                    "Fast & efficient",
-                                    "gpt-6-luna",
-                                    s.model.text == "gpt-6-luna",
-                                ))
-                                .child(model_option(
-                                    "GPT-6.1 Terra",
-                                    "Natural writing",
-                                    "gpt-6.1-terra",
-                                    s.model.text == "gpt-6.1-terra",
-                                )),
-                        )
-                        .child(
-                            row()
-                                .w_full()
-                                .gap(10.0)
-                                .child(model_option(
-                                    "GPT-6.1 Sol",
-                                    "Complex work",
-                                    "gpt-6.1-sol",
-                                    s.model.text == "gpt-6.1-sol",
-                                ))
-                                .child(model_option(
-                                    "GPT-6 Astra",
-                                    "Most expensive, not for this kind of work but you do you",
-                                    "gpt-6-astra",
-                                    s.model.text == "gpt-6-astra",
-                                )),
-                        )
-                        .child(if s.auth == "chatgpt" && !s.catalog.is_empty() {
-                            col()
-                                .key("catalog")
-                                .gap(6.0)
-                                .child(label("ON YOUR CHATGPT PLAN", 10.0, 700.0, 0x917e79))
-                                .children(
-                                    s.catalog
-                                        .iter()
-                                        .take(8)
-                                        .map(|(slug, display)| {
-                                            catalog_option(slug, display, s.model.text == *slug)
-                                        })
-                                        .collect::<Vec<_>>(),
-                                )
-                                .children((s.catalog.len() > 8).then(|| {
-                                    label(
-                                        format!(
-                                            "{} more models on your plan.",
-                                            s.catalog.len() - 8
-                                        ),
-                                        11.0,
-                                        450.0,
-                                        0x887a76,
-                                    )
-                                }))
+                        .child(if s.auth == "chatgpt" {
+                            model_select(s)
                         } else {
-                            el().size(0.0, 0.0)
-                        })
-                        .children(
-                            (!["gpt-6-luna", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra"]
-                                .contains(&s.model.text.as_str()))
-                            .then(|| {
-                                label(
-                                    format!("Saved model: {}", s.model.text),
-                                    11.0,
-                                    500.0,
-                                    0x887a76,
-                                )
-                            }),
-                        ),
+                            model_cards(s)
+                        }),
                 )
                 .child(
                     row()
